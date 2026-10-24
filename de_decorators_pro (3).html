@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DE DECORATORS - Pro Management</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            red: '#800000',
+                            redlight: '#9E1B1B',
+                            reddark: '#5C0000',
+                            gold: '#D4AF37',
+                            goldlight: '#F3D573',
+                            golddark: '#AA8A2A',
+                            dark: '#111827',
+                            light: '#F8FAFC'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #AA8A2A; }
+        
+        /* Animations */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .slide-up { animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.1);
+        }
+
+        /* Form Inputs */
+        .input-pro {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            background-color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+        }
+        .input-pro:focus {
+            border-color: #D4AF37;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+            transform: translateY(-1px);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, #9E1B1B 0%, #5C0000 100%);
+            color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 25px -10px rgba(158, 27, 27, 0.6); }
+        
+        .btn-gold {
+            background: linear-gradient(135deg, #F3D573 0%, #AA8A2A 100%);
+            color: #111827;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .btn-gold:hover { transform: translateY(-3px); box-shadow: 0 12px 25px -10px rgba(212, 175, 55, 0.6); }
+        
+        /* Vibrant Sidebar */
+        .sidebar-gradient {
+            background: linear-gradient(180deg, #111827 0%, #2A0808 100%);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+        }
+
+        /* Tabs */
+        .tab-btn { padding: 0.75rem 1.5rem; font-weight: 600; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn.active { color: #800000; border-bottom-color: #800000; background-color: #fff1f2; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+
+        /* Print Container (Hidden usually) */
+        #pdf-render-container { position: absolute; left: -9999px; top: -9999px; }
+        .agreement-page { width: 800px; padding: 40px; background: white; color: black; font-family: 'Inter', sans-serif; position: relative; z-index: 1;}
+        
+        /* Watermark */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 6rem;
+            color: rgba(212, 175, 55, 0.08);
+            white-space: nowrap;
+            z-index: 0;
+            pointer-events: none;
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+        
+        .ag-content { position: relative; z-index: 10; }
+        .signature-img { max-height: 50px; max-width: 150px; object-fit: contain; mix-blend-mode: multiply; }
+        
+        /* Dynamic Animated Background */
+        .bg-blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: 0;
+            animation: floatBlob 10s infinite alternate ease-in-out;
+            border-radius: 50%;
+        }
+        @keyframes floatBlob {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -50px) scale(1.1); }
+        }
+        
+        /* Signature Canvas */
+        #sigCanvas {
+            touch-action: none; /* Prevents scrolling while signing on mobile */
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased overflow-hidden h-screen w-screen flex relative">
+
+    <!-- CUSTOMER REMOTE SIGNATURE PORTAL -->
+    <div id="customer-portal-screen" class="absolute inset-0 z-[300] bg-gray-100 hidden flex-col overflow-y-auto">
+        <div class="max-w-md mx-auto w-full bg-white min-h-screen shadow-2xl relative flex flex-col">
+            <div class="p-6 bg-gradient-to-br from-brand-red to-brand-reddark text-center text-brand-gold relative overflow-hidden shrink-0">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-brand-gold rounded-full mix-blend-screen filter blur-3xl opacity-20"></div>
+                <div class="w-16 h-16 mx-auto bg-brand-gold/10 border border-brand-gold/30 rounded-2xl flex items-center justify-center font-serif text-3xl font-bold mb-3 shadow-lg">DE</div>
+                <h1 class="text-xl font-serif font-bold text-white tracking-widest">DE DECORATORS</h1>
+                <p class="text-xs text-brand-gold/80 mt-1 uppercase tracking-widest">Digital Agreement Portal</p>
+            </div>
+            
+            <div class="p-6 flex-1 flex flex-col space-y-6" id="cp-content">
+                <!-- Loading State -->
+                <div class="text-center py-20">
+                    <i class="ph ph-spinner animate-spin text-4xl text-brand-red"></i>
+                    <p class="mt-4 text-gray-600 font-medium">Loading Agreement Details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="auth-screen" class="absolute inset-0 z-[100] bg-gray-900 flex items-center justify-center p-4 transition-opacity duration-500 overflow-hidden">
+        <!-- Auth Background -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="bg-blob w-96 h-96 bg-brand-red right-0 top-0 opacity-40"></div>
+            <div class="bg-blob w-96 h-96 bg-brand-gold left-0 bottom-0 opacity-20" style="animation-delay: -5s;"></div>
+        </div>
+        <div class="glass-panel w-full max-w-md rounded-3xl p-10 relative z-10">
+            <div class="text-center mb-10">
+                <div class="w-24 h-24 mx-auto bg-gradient-to-br from-brand-redlight to-brand-reddark rounded-3xl flex items-center justify-center mb-6 shadow-[0_10px_30px_rgba(128,0,0,0.5)] border border-brand-gold/30">
+                    <span class="text-brand-gold font-serif text-4xl font-bold">DE</span>
+                </div>
+                <h1 class="text-3xl font-serif font-bold text-gray-900">DE DECORATORS</h1>
+                <p class="text-sm text-gray-600 mt-2 font-medium">Business Management System</p>
+            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+                    <input type="email" id="authEmail" required class="input-pro" placeholder="admin@dedecorators.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Password</label>
+                    <input type="password" id="authPass" required class="input-pro" placeholder="••••••••">
+                </div>
+                <button type="submit" id="loginBtn" class="w-full py-4 rounded-xl btn-primary font-bold text-lg flex justify-center items-center gap-2 mt-4 shadow-xl">
+                    <span>Sign In to Dashboard</span> <i class="ph ph-arrow-right text-xl"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="app-screen" class="flex w-full h-full opacity-0 pointer-events-none transition-opacity duration-500">
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-72 sidebar-gradient text-white flex flex-col h-full flex-shrink-0 transition-transform duration-300 transform -translate-x-full md:translate-x-0 absolute md:relative z-40">
+            <div class="p-6 border-b border-white/10 flex items-center justify-between relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-brand-gold rounded-full mix-blend-screen filter blur-3xl opacity-20 pointer-events-none"></div>
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-12 h-12 bg-gradient-to-br from-brand-redlight to-brand-reddark rounded-xl flex items-center justify-center font-serif font-bold text-brand-gold text-2xl shadow-[0_0_15px_rgba(212,175,55,0.3)] border border-brand-gold/30">DE</div>
+                    <div><h2 class="font-serif font-bold text-brand-gold tracking-wide leading-tight text-lg">DE DECORATORS</h2></div>
+                </div>
+                <button class="md:hidden text-gray-400 hover:text-white relative z-10" onclick="toggleSidebar()"><i class="ph ph-x text-2xl"></i></button>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2" id="nav-links">
+                <button onclick="changeView('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-gradient-to-r from-brand-red/40 to-transparent text-brand-gold border-l-4 border-brand-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"><i class="ph ph-squares-four text-xl"></i> <span class="font-medium">Dashboard</span></button>
+                <button onclick="changeView('agreement')" id="nav-agreement" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-300 hover:text-white hover:bg-white/5 border-l-4 border-transparent"><i class="ph ph-handshake text-xl"></i> <span class="font-medium">New Agreement</span></button>
+                <button onclick="changeView('works')" id="nav-works" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-300 hover:text-white hover:bg-white/5 border-l-4 border-transparent"><i class="ph ph-briefcase text-xl"></i> <span class="font-medium">Works Manager</span></button>
+                <button onclick="changeView('staff')" id="nav-staff" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-300 hover:text-white hover:bg-white/5 border-l-4 border-transparent"><i class="ph ph-users text-xl"></i> <span class="font-medium">Staff List</span></button>
+                <button onclick="changeView('finance')" id="nav-finance" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-300 hover:text-white hover:bg-white/5 border-l-4 border-transparent"><i class="ph ph-currency-inr text-xl"></i> <span class="font-medium">Expenses</span></button>
+            </nav>
+            <div class="p-4 border-t border-white/10 relative">
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 text-gray-300 hover:text-white hover:bg-brand-red/60 transition-all border border-white/5 font-medium"><i class="ph ph-sign-out text-lg"></i> Logout Securely</button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] relative">
+            <!-- Mobile Header -->
+            <div class="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-30">
+                <div class="flex items-center gap-2 font-serif font-bold text-brand-dark"><span class="text-brand-red">DE</span> DECORATORS</div>
+                <button onclick="toggleSidebar()" class="text-2xl text-gray-600"><i class="ph ph-list"></i></button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+                <!-- Decorative Background Blobs for Main Content -->
+                <div class="bg-blob w-[500px] h-[500px] bg-brand-gold opacity-10 top-[-10%] left-[-10%] mix-blend-multiply"></div>
+                <div class="bg-blob w-[600px] h-[600px] bg-brand-red opacity-5 bottom-[-20%] right-[-10%] mix-blend-multiply" style="animation-delay: -3s;"></div>
+
+                <!-- 1. DASHBOARD -->
+                <div id="view-dashboard" class="view-section slide-up block max-w-7xl mx-auto space-y-8 relative z-10">
+                    <div>
+                        <h2 class="text-3xl font-serif font-bold text-brand-dark">Business Overview</h2>
+                        <p class="text-gray-500 font-medium">Welcome back. Here is what is happening today.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-panel p-6 rounded-3xl border-t-4 border-t-brand-gold transform hover:-translate-y-2 transition-all duration-300">
+                            <div class="text-sm font-bold text-gray-500 mb-2 flex justify-between uppercase tracking-wider">Total Active Works <div class="w-12 h-12 bg-brand-gold/10 rounded-2xl flex items-center justify-center"><i class="ph ph-briefcase text-brand-golddark text-2xl"></i></div></div>
+                            <div class="text-5xl font-black text-brand-dark mt-4" id="dashWorksCount">0</div>
+                        </div>
+                        <div class="glass-panel p-6 rounded-3xl border-t-4 border-t-green-500 transform hover:-translate-y-2 transition-all duration-300">
+                            <div class="text-sm font-bold text-gray-500 mb-2 flex justify-between uppercase tracking-wider">Total Received <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center"><i class="ph ph-wallet text-green-600 text-2xl"></i></div></div>
+                            <div class="text-4xl font-black text-brand-dark mt-4">₹<span id="dashRevenue">0</span></div>
+                        </div>
+                        <div class="glass-panel p-6 rounded-3xl border-t-4 border-t-brand-red transform hover:-translate-y-2 transition-all duration-300">
+                            <div class="text-sm font-bold text-gray-500 mb-2 flex justify-between uppercase tracking-wider">Total Expenses <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center"><i class="ph ph-trend-down text-brand-red text-2xl"></i></div></div>
+                            <div class="text-4xl font-black text-brand-dark mt-4">₹<span id="dashExpenses">0</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Business Settings for Logo Upload -->
+                    <div class="glass-panel p-6 rounded-3xl border border-gray-200 mt-8">
+                        <h3 class="text-xl font-serif font-bold text-brand-dark mb-4">Business Settings (PDF Logo)</h3>
+                        <div class="flex items-center gap-6">
+                            <div id="logo-preview" class="w-24 h-24 bg-white rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden shadow-sm">
+                                <span class="text-xs text-gray-400 font-medium">No Logo</span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Upload Your PNG/JPG Logo</label>
+                                <input type="file" id="logoInput" accept="image/png, image/jpeg" class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold/20 file:text-brand-dark hover:file:bg-brand-gold/30 cursor-pointer" onchange="handleLogoUpload(event)">
+                                <p class="text-xs text-gray-500 mt-2">This logo will automatically appear on the top-left corner of all generated PDF Agreements.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CREATE AGREEMENT -->
+                <div id="view-agreement" class="view-section slide-up hidden max-w-5xl mx-auto relative z-10">
+                    <div class="glass-panel rounded-3xl overflow-hidden p-8 space-y-8">
+                        <div class="flex items-center gap-4 border-b border-gray-200 pb-6">
+                            <div class="w-14 h-14 bg-gradient-to-br from-brand-red to-brand-reddark rounded-2xl flex items-center justify-center text-white shadow-lg"><i class="ph ph-file-text text-3xl"></i></div>
+                            <div>
+                                <h3 class="text-2xl font-serif font-bold text-brand-dark">Create New Agreement</h3>
+                                <p class="text-sm text-gray-500 font-medium mt-1">Draft a professional contract with flexible billing.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Section 1 & 2 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-5 bg-white/50 p-6 rounded-2xl border border-white/60">
+                                <h4 class="text-sm font-bold text-brand-red uppercase tracking-widest flex items-center gap-2"><i class="ph ph-user text-lg"></i> Customer Info</h4>
+                                <input type="text" id="agCustName" class="input-pro bg-white" placeholder="Full Name (Required)">
+                                <input type="tel" id="agPhone" class="input-pro bg-white" placeholder="Phone Number (Required)">
+                                <input type="text" id="agAddress" class="input-pro bg-white" placeholder="Address">
+                            </div>
+                            <div class="space-y-5 bg-white/50 p-6 rounded-2xl border border-white/60">
+                                <h4 class="text-sm font-bold text-brand-red uppercase tracking-widest flex items-center gap-2"><i class="ph ph-calendar-star text-lg"></i> Event Details</h4>
+                                <input type="text" id="agEventName" class="input-pro bg-white" placeholder="Event Type (e.g., Wedding)">
+                                <input type="date" id="agDate" class="input-pro bg-white">
+                                <input type="text" id="agVenue" class="input-pro bg-white" placeholder="Venue Location">
+                            </div>
+                        </div>
+                        
+                        <!-- Items & Financials -->
+                        <div class="bg-white/70 p-6 rounded-2xl border border-white/60">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-sm font-bold text-brand-red uppercase tracking-widest flex items-center gap-2"><i class="ph ph-list-numbers text-lg"></i> Items & Package</h4>
+                                <button type="button" onclick="addAgRow()" class="btn-gold px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-md"><i class="ph ph-plus"></i> Add Item</button>
+                            </div>
+                            <div class="border border-gray-200 rounded-xl overflow-hidden mb-6 bg-white overflow-x-auto shadow-sm">
+                                <table class="w-full text-left min-w-[600px]">
+                                    <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        <tr><th class="p-4">Item Description</th><th class="p-4 w-24 text-center">Qty</th><th class="p-4 w-32 text-right">Rate (₹)</th><th class="p-4 w-32 text-right">Total (₹)</th><th class="p-4 w-16 text-center">Act</th></tr>
+                                    </thead>
+                                    <tbody id="agItemsBody" class="divide-y divide-gray-100 text-sm"></tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-inner">
+                                <div class="space-y-4">
+                                    <div><label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Other Charges (₹)</label><input type="number" id="agOtherCharge" class="input-pro bg-white" value="0" oninput="calcAgTotal()"></div>
+                                    <div><label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Discount (₹)</label><input type="number" id="agDiscount" class="input-pro bg-white" value="0" oninput="calcAgTotal()"></div>
+                                </div>
+                                <div class="flex flex-col justify-end space-y-3 text-right">
+                                    <div class="text-gray-500 font-medium">Items Subtotal: ₹<span id="agSubtotal">0</span></div>
+                                    <div class="mt-2">
+                                        <label class="block text-xs font-bold text-brand-red uppercase tracking-wider mb-1">Optional: Override Grand Total</label>
+                                        <input type="number" id="agManualTotal" class="input-pro text-right font-black text-xl border-brand-gold bg-brand-gold/5" placeholder="Force Lump Sum Total (₹)" oninput="calcAgTotal(true)">
+                                    </div>
+                                    <div class="text-2xl font-black text-brand-dark mt-2 border-t pt-2">Final Contract Total: <span class="text-brand-red">₹<span id="agGrandTotal">0</span></span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end pt-4"><button onclick="saveAgreement()" id="btnSaveAg" class="btn-primary px-10 py-4 rounded-xl font-bold text-lg shadow-xl flex items-center gap-2"><span>Save Agreement</span> <i class="ph ph-check-circle text-xl"></i></button></div>
+                    </div>
+                </div>
+
+                <!-- 3. WORKS MANAGER -->
+                <div id="view-works" class="view-section slide-up hidden max-w-6xl mx-auto space-y-6 relative z-10">
+                    <div class="glass-panel p-8 rounded-3xl">
+                        <div class="flex justify-between items-center mb-8 border-b pb-4">
+                            <h3 class="text-2xl font-serif font-bold text-brand-dark">Works & Bookings Manager</h3>
+                            <button onclick="loadWorks()" class="text-gray-500 hover:text-brand-red"><i class="ph ph-arrows-clockwise text-2xl"></i></button>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
+                            <table class="w-full text-left min-w-[700px]">
+                                <thead class="bg-gray-50 text-xs uppercase font-bold text-gray-500 tracking-wider">
+                                    <tr><th class="p-4">Customer & Work</th><th class="p-4">Date & Venue</th><th class="p-4">Total Amount</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr>
+                                </thead>
+                                <tbody id="worksTbody" class="divide-y text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. STAFF LIST -->
+                <div id="view-staff" class="view-section slide-up hidden max-w-5xl mx-auto relative z-10">
+                    <div class="glass-panel p-8 rounded-3xl">
+                        <h3 class="text-2xl font-serif font-bold text-brand-dark mb-6">Staff Roster</h3>
+                        <div class="flex gap-4 mb-8 bg-white/50 p-6 rounded-2xl border flex-wrap shadow-sm">
+                            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Staff Name</label><input type="text" id="stName" class="input-pro bg-white"></div>
+                            <div class="flex-1 min-w-[150px]"><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Phone Number</label><input type="tel" id="stPhone" class="input-pro bg-white"></div>
+                            <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Default Wage (₹)</label><input type="number" id="stWage" class="input-pro bg-white"></div>
+                            <div class="flex items-end"><button onclick="addStaff()" class="btn-gold px-8 py-3 h-[46px] rounded-xl font-bold shadow-md">Add Staff</button></div>
+                        </div>
+                        <div class="border rounded-xl bg-white overflow-hidden shadow-sm">
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <tr><th class="p-4">Staff Details</th><th class="p-4 text-right">Default Daily Wage</th></tr>
+                                </thead>
+                                <tbody id="staffTbody" class="divide-y text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 5. FINANCE / EXPENSES -->
+                <div id="view-finance" class="view-section slide-up hidden max-w-5xl mx-auto space-y-6 relative z-10">
+                    <div class="glass-panel p-8 rounded-3xl">
+                        <h3 class="text-2xl font-serif font-bold text-brand-dark mb-6">Expense Tracker</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 bg-white/50 p-6 rounded-2xl border shadow-sm">
+                            <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Description</label><input type="text" id="expDesc" placeholder="e.g. Bought flowers" class="input-pro bg-white"></div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Category</label>
+                                <select id="expCategory" class="input-pro bg-white">
+                                    <option value="Materials">Materials</option><option value="Transport">Transport</option><option value="Labour">Labour</option><option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Amount (₹)</label><input type="number" id="expAmount" class="input-pro bg-white"></div>
+                            <div class="flex items-end"><button onclick="addExpense()" class="btn-primary w-full h-[46px] rounded-xl font-bold shadow-md">Add Expense</button></div>
+                        </div>
+                        <div class="border rounded-xl bg-white overflow-hidden shadow-sm">
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <tr><th class="p-4">Date</th><th class="p-4">Description</th><th class="p-4">Category</th><th class="p-4 text-right">Amount</th></tr>
+                                </thead>
+                                <tbody id="expensesTbody" class="divide-y text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- TABBED WORK MODAL -->
+    <div id="workModal" class="fixed inset-0 z-[150] bg-black/70 backdrop-blur-md hidden items-center justify-center p-4 sm:p-6 transition-opacity">
+        <div class="bg-gray-50 rounded-3xl shadow-2xl w-full max-w-5xl h-[95vh] flex flex-col overflow-hidden slide-up border border-white/20">
+            <!-- Modal Header -->
+            <div class="p-6 border-b flex justify-between items-center bg-white shrink-0">
+                <h3 class="text-xl font-serif font-bold text-brand-dark flex items-center gap-3">
+                    <div class="w-10 h-10 bg-brand-red/10 rounded-lg flex items-center justify-center"><i class="ph ph-folder-open text-brand-red text-xl"></i></div>
+                    Work Management <span id="wmId" class="text-gray-400 text-sm font-sans font-medium ml-2 px-2 py-1 bg-gray-100 rounded"></span>
+                </h3>
+                <div class="flex items-center gap-4">
+                    <select id="wmStatus" onchange="updateWorkStatus()" class="input-pro py-2 text-sm font-bold w-40 bg-gray-50">
+                        <option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Running">Running</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option>
+                    </select>
+                    <button onclick="closeWorkModal()" class="text-gray-400 hover:text-brand-red transition-colors w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full"><i class="ph ph-x text-xl font-bold"></i></button>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="flex border-b bg-white shrink-0 overflow-x-auto px-6 gap-2">
+                <button class="tab-btn active" onclick="switchTab('wm-tab-payments')"><i class="ph ph-wallet mr-1"></i> Payments</button>
+                <button class="tab-btn" onclick="switchTab('wm-tab-materials')"><i class="ph ph-package mr-1"></i> Materials Tracking</button>
+                <button class="tab-btn" onclick="switchTab('wm-tab-staff')"><i class="ph ph-users mr-1"></i> Staff Attendance</button>
+                <button class="tab-btn" onclick="switchTab('wm-tab-docs')"><i class="ph ph-file-pdf mr-1"></i> Signatures & PDF</button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50">
+                
+                <!-- TAB: PAYMENTS -->
+                <div id="wm-tab-payments" class="tab-content active space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Contract Value</p>
+                            <p class="text-3xl font-black text-brand-dark">₹<span id="wmTotalAmt">0</span></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-green-200 shadow-sm text-center">
+                            <p class="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Total Received</p>
+                            <p class="text-3xl font-black text-green-600">₹<span id="wmTotalPaid">0</span></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-brand-red/30 shadow-sm text-center">
+                            <p class="text-xs font-bold text-brand-red uppercase tracking-wider mb-1">Remaining Due</p>
+                            <p class="text-3xl font-black text-brand-red">₹<span id="wmDueAmt">0</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-wrap gap-4 items-end">
+                        <div class="flex-1 min-w-[150px]"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Amount (₹)</label><input type="number" id="payAmt" class="input-pro bg-gray-50"></div>
+                        <div class="flex-1 min-w-[150px]"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Method</label><select id="payMethod" class="input-pro bg-gray-50"><option>Cash</option><option>UPI</option><option>Bank Transfer</option></select></div>
+                        <div class="flex-1 min-w-[150px]"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Date</label><input type="date" id="payDate" class="input-pro bg-gray-50"></div>
+                        <button onclick="addPayment()" class="btn-gold px-8 py-3 h-[46px] rounded-xl font-bold shadow-md">Add Payment</button>
+                    </div>
+                    
+                    <div class="border rounded-xl bg-white overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 border-b"><tr><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider">Date</th><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider">Method</th><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider text-right">Amount</th></tr></thead>
+                            <tbody id="wmPaymentsTbody" class="divide-y text-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: MATERIALS -->
+                <div id="wm-tab-materials" class="tab-content">
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-xl mb-6 text-sm font-medium border border-blue-100 flex items-center gap-3">
+                        <i class="ph ph-info text-xl"></i> Track items returned from the venue to prevent loss.
+                    </div>
+                    <div class="border rounded-xl bg-white overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 border-b text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                <tr><th class="p-4">Item Name</th><th class="p-4 text-center">Issued Qty</th><th class="p-4 text-center">Returned Qty</th><th class="p-4 text-center">Action</th></tr>
+                            </thead>
+                            <tbody id="wmMaterialsTbody" class="divide-y text-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: STAFF -->
+                <div id="wm-tab-staff" class="tab-content space-y-6">
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-wrap gap-4 items-end">
+                        <div class="flex-1 min-w-[200px]"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Select Staff</label><select id="attStaff" class="input-pro bg-gray-50"></select></div>
+                        <div class="w-40"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Date Worked</label><input type="date" id="attDate" class="input-pro bg-gray-50"></div>
+                        <div class="w-32"><label class="block text-xs font-bold text-gray-500 uppercase mb-2">Wage (₹)</label><input type="number" id="attWage" class="input-pro bg-gray-50"></div>
+                        <button onclick="addAttendance()" class="btn-primary px-8 py-3 h-[46px] rounded-xl font-bold shadow-md">Assign Staff</button>
+                    </div>
+                    <div class="border rounded-xl bg-white overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 border-b"><tr><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider">Staff Name</th><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider">Date</th><th class="p-4 font-bold text-gray-500 uppercase text-xs tracking-wider text-right">Wage Logged</th></tr></thead>
+                            <tbody id="wmStaffTbody" class="divide-y text-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: DOCS & PDF -->
+                <div id="wm-tab-docs" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Signatures -->
+                        <div class="p-6 border rounded-2xl bg-white shadow-sm flex flex-col">
+                            <h4 class="font-bold text-sm text-gray-700 uppercase tracking-wider mb-4 border-b pb-2">Decorator Signature</h4>
+                            <div id="sigDecPreview" class="mb-4 h-24 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center text-sm font-medium text-gray-400">No Signature</div>
+                            <div class="mt-auto">
+                                <input type="file" id="fileDecSig" accept="image/*" class="text-xs mb-3 w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-red/10 file:text-brand-red hover:file:bg-brand-red/20">
+                                <button onclick="uploadSignature('decorator')" class="bg-gray-800 hover:bg-gray-900 transition-colors text-white px-4 py-2 rounded-xl text-sm font-bold w-full">Upload Decorator Sign</button>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 border rounded-2xl bg-white shadow-sm">
+                            <h4 class="font-bold text-sm text-gray-700 uppercase tracking-wider mb-4 border-b pb-2">Customer Signature & Consent</h4>
+                            
+                            <!-- Tabs for Draw vs Upload -->
+                            <div class="flex gap-2 mb-4 bg-gray-100 p-1 rounded-lg">
+                                <button onclick="toggleSigMode('draw')" id="btnSigDraw" class="flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red">Draw Digital</button>
+                                <button onclick="toggleSigMode('upload')" id="btnSigUpload" class="flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800">Manual Upload</button>
+                            </div>
+
+                            <div id="sigCustPreview" class="mb-2 h-16 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center text-sm font-medium text-gray-400">No Signature Yet</div>
+
+                            <!-- Draw Mode -->
+                            <div id="modeSigDraw" class="space-y-3">
+                                <div class="border border-gray-300 rounded-xl overflow-hidden bg-white">
+                                    <canvas id="sigCanvas" class="w-full h-32 bg-gray-50" width="400" height="150"></canvas>
+                                </div>
+                                <div class="flex justify-end"><button onclick="clearSignature()" class="text-xs font-bold text-gray-500 hover:text-brand-red"><i class="ph ph-eraser"></i> Clear Pad</button></div>
+                                
+                                <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl text-xs text-blue-800">
+                                    <label class="flex items-start gap-2 cursor-pointer font-medium">
+                                        <input type="checkbox" id="consentCheck" class="mt-0.5 rounded text-brand-red focus:ring-brand-red">
+                                        <span>I have read and accept the Terms & Conditions. I consent to record my IP and Location for digital verification.</span>
+                                    </label>
+                                </div>
+                                <button onclick="saveDigitalCustomerSignature()" class="bg-brand-red hover:bg-brand-reddark transition-colors text-white px-4 py-2 rounded-xl text-sm font-bold w-full flex items-center justify-center gap-2">
+                                    <i class="ph ph-fingerprint"></i> Save Digital Signature & Consent
+                                </button>
+                            </div>
+
+                            <!-- Upload Mode -->
+                            <div id="modeSigUpload" class="hidden mt-auto pt-4 border-t">
+                                <input type="file" id="fileCustSig" accept="image/*" class="text-xs mb-3 w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700">
+                                <button onclick="uploadSignature('customer')" class="bg-gray-800 hover:bg-gray-900 transition-colors text-white px-4 py-2 rounded-xl text-sm font-bold w-full">Upload Manual Sign</button>
+                            </div>
+                            
+                            <!-- WhatsApp Remote Link Button -->
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <button onclick="sendSignatureLink()" class="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded-xl text-sm font-bold w-full flex items-center justify-center gap-2 transition-colors shadow-md">
+                                    <i class="ph ph-whatsapp-logo text-xl"></i> Send Remote Link via WhatsApp
+                                </button>
+                                <p class="text-[10px] text-gray-500 text-center mt-2 leading-tight">Customer can view & sign the agreement securely from their phone.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-8 border border-brand-gold/40 rounded-2xl bg-gradient-to-br from-brand-goldlight/10 to-transparent flex flex-col items-center justify-center space-y-5 shadow-sm relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-brand-gold opacity-10 rounded-full blur-3xl"></div>
+                        <div class="w-16 h-16 bg-brand-gold/20 text-brand-golddark rounded-full flex items-center justify-center text-3xl mb-2"><i class="ph ph-file-pdf"></i></div>
+                        <h4 class="font-serif font-bold text-2xl text-brand-dark">Agreement & Sharing</h4>
+                        <p class="text-sm text-gray-600 text-center max-w-md font-medium">Download the watermarked PDF. You can also send a direct message to the customer via WhatsApp.</p>
+                        
+                        <div class="flex flex-wrap justify-center gap-4 pt-2 relative z-10 w-full">
+                            <button onclick="generatePDF('en')" class="btn-primary flex-1 min-w-[160px] py-3 rounded-xl text-sm flex justify-center items-center gap-2 font-bold shadow-lg"><i class="ph ph-download-simple text-lg"></i> English PDF</button>
+                            <button onclick="generatePDF('bn')" class="btn-gold flex-1 min-w-[160px] py-3 rounded-xl text-sm flex justify-center items-center gap-2 font-bold shadow-lg"><i class="ph ph-download-simple text-lg"></i> Bengali PDF</button>
+                            <button onclick="shareToWhatsApp()" class="bg-[#25D366] hover:bg-[#128C7E] text-white flex-1 min-w-[160px] py-3 rounded-xl text-sm flex justify-center items-center gap-2 font-bold shadow-lg transition-colors"><i class="ph ph-whatsapp-logo text-lg"></i> Send WhatsApp</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl z-[200] transition-all duration-300 opacity-0 pointer-events-none translate-y-5 flex items-center gap-3 min-w-[300px]">
+        <i id="toastIcon" class="ph ph-info text-2xl text-brand-gold"></i>
+        <span id="toastMsg" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- HIDDEN TEMPLATES FOR PDF GENERATION -->
+    <div id="pdf-render-container">
+        
+        <!-- ENGLISH AGREEMENT TEMPLATE -->
+        <div id="template-en" class="agreement-page">
+            <div class="watermark">DE DECORATORS</div>
+            <div class="ag-content">
+                <div class="text-center mb-8 border-b-2 border-brand-red pb-6 relative">
+                    <div class="absolute left-0 top-0 w-24 h-24 bg-white shadow-lg rounded-xl overflow-hidden border-2 border-brand-gold flex items-center justify-center p-1">
+                        <img id="pdfLogoImgEn" src="" class="w-full h-full object-contain hidden">
+                        <div id="pdfLogoTextEn" class="w-full h-full bg-gradient-to-br from-brand-red to-brand-reddark flex items-center justify-center text-white font-serif font-bold text-4xl rounded-lg">DE</div>
+                    </div>
+                    <h1 class="text-4xl font-serif font-bold text-brand-dark mb-1">DE DECORATORS</h1>
+                    <p class="text-sm font-bold text-gray-600 tracking-widest uppercase">Decoration Work Agreement</p>
+                    <p class="text-xs text-gray-500 mt-2">Address: Your Business Address Here | Mobile No.: Your Phone Here</p>
+                </div>
+                
+                <div class="flex justify-between text-sm mb-6 bg-gray-50 p-3 rounded border">
+                    <p><strong>Agreement No:</strong> <span class="pd-id"></span></p>
+                    <p><strong>Date:</strong> <span class="pd-date"></span></p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mb-3">1. Details of the Parties</h2>
+                        <div class="grid grid-cols-2 gap-6 text-sm">
+                            <div class="bg-gray-50 p-3 rounded border"><p class="font-bold text-brand-red mb-1">First Party — Decorator</p><p>Business: DE DECORATORS</p><p>Representative: Owner</p></div>
+                            <div class="bg-gray-50 p-3 rounded border"><p class="font-bold text-brand-red mb-1">Second Party — Customer</p><p>Name: <span class="pd-cname font-bold"></span></p><p>Phone: <span class="pd-cphone"></span></p></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mb-3">2. Event Details</h2>
+                        <div class="text-sm grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded border">
+                            <p><strong>Event Name:</strong> <span class="pd-ename"></span></p>
+                            <p><strong>Event Date:</strong> <span class="pd-edate font-bold"></span></p>
+                            <p class="col-span-2"><strong>Venue/Location:</strong> <span class="pd-evenue"></span></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mb-3">3. Scope of Work and Item Details</h2>
+                        <table class="w-full text-left text-sm border-collapse border border-gray-300">
+                            <thead class="bg-gray-100"><tr><th class="border p-2">Item Description</th><th class="border p-2 w-16 text-center">Qty</th><th class="border p-2 w-24 text-right">Rate(₹)</th><th class="border p-2 w-24 text-right">Amt(₹)</th></tr></thead>
+                            <tbody class="pd-items-tbody"></tbody>
+                        </table>
+                        <div class="text-sm text-right mt-3 bg-gray-50 p-3 rounded border">
+                            <div class="font-black text-xl text-brand-dark">Total Contract Amount: ₹<span class="pd-grand text-brand-red">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-gray-600 leading-relaxed border p-4 rounded bg-gray-50">
+                        <h3 class="font-bold text-sm mb-2 text-brand-red">Terms & Conditions</h3>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li>The customer shall pay the agreed advance to confirm the booking.</li>
+                            <li>The outstanding balance shall be paid according to the agreed schedule.</li>
+                            <li>If any rented item is lost or damaged, applicable compensation will be determined.</li>
+                            <li>Additional work or items shall be charged separately.</li>
+                        </ul>
+                    </div>
+
+                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mt-8">Acceptance & Signatures</h2>
+                    <p class="text-xs text-gray-500 mb-6">Both parties confirm that they have read, understood, and voluntarily accepted the terms of this agreement.</p>
+                    
+                    <div class="flex justify-between text-sm mt-4">
+                        <div class="text-center w-64">
+                            <div class="h-20 flex justify-center items-end pd-sig-dec border-b border-dashed border-gray-400 pb-1"></div>
+                            <div class="pt-2 font-bold text-gray-700">Decorator's Signature</div>
+                            <div class="text-xs text-gray-500 mt-1">DE DECORATORS</div>
+                        </div>
+                        <div class="text-center w-64">
+                            <div class="h-20 flex justify-center items-end pd-sig-cust border-b border-dashed border-gray-400 pb-1"></div>
+                            <div class="pt-2 font-bold text-gray-700">Customer's Signature</div>
+                            <div class="text-xs text-gray-500 mt-1"><span class="pd-cname"></span></div>
+                            
+                            <!-- Digital Metadata Info (Hidden if manual upload) -->
+                            <div class="pd-consent-meta hidden mt-3 p-2 bg-gray-50 border border-gray-200 text-[10px] text-left rounded leading-tight text-gray-500 font-mono">
+                                <b>Digital Consent Record</b><br>
+                                Time: <span class="pd-meta-time"></span><br>
+                                IP: <span class="pd-meta-ip"></span><br>
+                                Loc: <span class="pd-meta-loc"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BENGALI AGREEMENT TEMPLATE -->
+        <div id="template-bn" class="agreement-page">
+            <div class="watermark">DE DECORATORS</div>
+            <div class="ag-content">
+                <div class="text-center mb-8 border-b-2 border-brand-red pb-6 relative">
+                    <div class="absolute left-0 top-0 w-24 h-24 bg-white shadow-lg rounded-xl overflow-hidden border-2 border-brand-gold flex items-center justify-center p-1">
+                        <img id="pdfLogoImgBn" src="" class="w-full h-full object-contain hidden">
+                        <div id="pdfLogoTextBn" class="w-full h-full bg-gradient-to-br from-brand-red to-brand-reddark flex items-center justify-center text-white font-serif font-bold text-4xl rounded-lg">DE</div>
+                    </div>
+                    <h1 class="text-4xl font-serif font-bold text-brand-dark mb-1">DE DECORATORS</h1>
+                    <p class="text-sm font-bold text-gray-600 tracking-widest">ডেকোরেশন কাজের চুক্তিপত্র</p>
+                    <p class="text-xs text-gray-500 mt-2">ঠিকানা: আপনার ব্যবসার ঠিকানা | মোবাইল: আপনার ফোন নম্বর</p>
+                </div>
+                
+                <div class="flex justify-between text-sm mb-6 bg-gray-50 p-3 rounded border">
+                    <p><strong>চুক্তিপত্র নং:</strong> <span class="pd-id"></span></p>
+                    <p><strong>তারিখ:</strong> <span class="pd-date"></span></p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mb-3">১. পক্ষদ্বয়ের বিবরণ</h2>
+                        <div class="grid grid-cols-2 gap-6 text-sm">
+                            <div class="bg-gray-50 p-3 rounded border"><p class="font-bold text-brand-red mb-1">প্রথম পক্ষ — ডেকোরেটর</p><p>প্রতিষ্ঠানের নাম: DE DECORATORS</p><p>প্রতিনিধি: মালিক</p></div>
+                            <div class="bg-gray-50 p-3 rounded border"><p class="font-bold text-brand-red mb-1">দ্বিতীয় পক্ষ — গ্রাহক</p><p>নাম: <span class="pd-cname font-bold"></span></p><p>মোবাইল: <span class="pd-cphone"></span></p></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mb-3">২. অনুষ্ঠানের বিবরণ</h2>
+                        <div class="text-sm grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded border">
+                            <p><strong>অনুষ্ঠান:</strong> <span class="pd-ename"></span></p>
+                            <p><strong>তারিখ:</strong> <span class="pd-edate font-bold"></span></p>
+                            <p class="col-span-2"><strong>স্থান:</strong> <span class="pd-evenue"></span></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mb-3">৩. কাজের বিবরণ</h2>
+                        <table class="w-full text-left text-sm border-collapse border border-gray-300">
+                            <thead class="bg-gray-100"><tr><th class="border p-2">বিবরণ</th><th class="border p-2 w-16 text-center">পরিমাণ</th><th class="border p-2 w-24 text-right">দর(₹)</th><th class="border p-2 w-24 text-right">মোট(₹)</th></tr></thead>
+                            <tbody class="pd-items-tbody"></tbody>
+                        </table>
+                        <div class="text-sm text-right mt-3 bg-gray-50 p-3 rounded border">
+                            <div class="font-black text-xl text-brand-dark">সর্বমোট চুক্তিমূল্য: ₹<span class="pd-grand text-brand-red">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-gray-600 leading-relaxed border p-4 rounded bg-gray-50">
+                        <h3 class="font-bold text-sm mb-2 text-brand-red">শর্তাবলি</h3>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li>বুকিং নিশ্চিত করার জন্য গ্রাহক নির্ধারিত অগ্রিম প্রদান করবেন।</li>
+                            <li>বাকি টাকা উভয় পক্ষের সম্মত সময় অনুযায়ী পরিশোধ করতে হবে।</li>
+                            <li>সরবরাহ করা ভাড়ার মালপত্র হারিয়ে বা ভেঙে গেলে ক্ষতিপূরণ নির্ধারণ করা হবে।</li>
+                            <li>অতিরিক্ত কাজের জন্য আলাদা মূল্য নির্ধারণ করা হবে।</li>
+                        </ul>
+                    </div>
+
+                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mt-8">উভয় পক্ষের সম্মতি ও স্বাক্ষর</h2>
+                    <p class="text-xs text-gray-500 mb-6">উভয় পক্ষ এই চুক্তিপত্রের শর্তাবলি পড়ে, বুঝে এবং স্বেচ্ছায় সম্মতি প্রদান করছেন।</p>
+                    
+                    <div class="flex justify-between text-sm mt-4">
+                        <div class="text-center w-64">
+                            <div class="h-20 flex justify-center items-end pd-sig-dec border-b border-dashed border-gray-400 pb-1"></div>
+                            <div class="pt-2 font-bold text-gray-700">ডেকোরেটরের স্বাক্ষর</div>
+                            <div class="text-xs text-gray-500 mt-1">DE DECORATORS</div>
+                        </div>
+                        <div class="text-center w-64">
+                            <div class="h-20 flex justify-center items-end pd-sig-cust border-b border-dashed border-gray-400 pb-1"></div>
+                            <div class="pt-2 font-bold text-gray-700">গ্রাহকের স্বাক্ষর</div>
+                            <div class="text-xs text-gray-500 mt-1"><span class="pd-cname"></span></div>
+
+                            <!-- Digital Metadata Info -->
+                            <div class="pd-consent-meta hidden mt-3 p-2 bg-gray-50 border border-gray-200 text-[10px] text-left rounded leading-tight text-gray-500 font-mono">
+                                <b>Digital Consent Record</b><br>
+                                Time: <span class="pd-meta-time"></span><br>
+                                IP: <span class="pd-meta-ip"></span><br>
+                                Loc: <span class="pd-meta-loc"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIG & SUPABASE ---
+        // Ensure you replace these with your actual details
+        var SUPABASE_URL = 'https://fbxbsqkrrxbkptylnfye.supabase.co';
+        var SUPABASE_KEY = 'sb_publishable_dA5_NADDn40TN3KmU91-vA_L1h1FtQa';
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- APP STATE ---
+        var currentUser = null;
+        var activeWorkId = null;
+        var activeWorkData = null;
+        var staffListCache = [];
+        
+        // Canvas Signature vars
+        var isDrawing = false;
+        var sigCanvas, sigCtx;
+
+        // --- AUTH ---
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                document.getElementById('auth-screen').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('app-screen').classList.remove('opacity-0', 'pointer-events-none');
+                initApp();
+            } else {
+                document.getElementById('auth-screen').classList.remove('opacity-0', 'pointer-events-none');
+                document.getElementById('app-screen').classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i> <span>Authenticating...</span>';
+            const { error } = await supabase.auth.signInWithPassword({ 
+                email: document.getElementById('authEmail').value, 
+                password: document.getElementById('authPass').value 
+            });
+            if (error) { 
+                showToast(error.message, 'error'); 
+                btn.innerHTML = '<span>Sign In to Dashboard</span> <i class="ph ph-arrow-right text-xl"></i>'; 
+            } else { 
+                checkAuth(); 
+            }
+        }
+        async function handleLogout() { await supabase.auth.signOut(); checkAuth(); }
+
+        // --- UI UTILS ---
+        function showToast(msg, type='info') {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toastIcon').className = type === 'error' ? 'ph ph-warning-circle text-2xl text-red-500' : 'ph ph-check-circle text-2xl text-brand-gold';
+            t.classList.remove('opacity-0', 'translate-y-5');
+            setTimeout(() => t.classList.add('opacity-0', 'translate-y-5'), 4000);
+        }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+        
+        function changeView(view) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + view).classList.remove('hidden');
+            
+            document.querySelectorAll('#nav-links button').forEach(el => {
+                el.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-300 hover:text-white hover:bg-white/5 border-l-4 border-transparent';
+            });
+            const activeNav = document.getElementById('nav-' + view);
+            activeNav.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-gradient-to-r from-brand-red/40 to-transparent text-brand-gold border-l-4 border-brand-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]';
+            
+            // Safe assignment for header if it exists
+            const headerTitleEl = document.getElementById('headerTitle');
+            if (headerTitleEl) headerTitleEl.innerText = activeNav.innerText.trim();
+
+            if (view === 'dashboard') loadDashboard();
+            if (view === 'works') loadWorks();
+            if (view === 'staff') loadStaff();
+            if (view === 'finance') loadExpenses();
+        }
+
+        function initApp() { changeView('dashboard'); addAgRow(); loadStaffDropdown(); loadSettings(); }
+
+        // --- BUSINESS SETTINGS (LOGO) ---
+        function handleLogoUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Str = event.target.result;
+                localStorage.setItem('dedecorators_logo', base64Str);
+                document.getElementById('logo-preview').innerHTML = `<img src="${base64Str}" class="w-full h-full object-contain">`;
+                showToast('Business Logo saved securely!', 'info');
+            };
+            reader.readAsDataURL(file); // Convert image to base64 string
+        }
+
+        function loadSettings() {
+            const savedLogo = localStorage.getItem('dedecorators_logo');
+            if(savedLogo) {
+                document.getElementById('logo-preview').innerHTML = `<img src="${savedLogo}" class="w-full h-full object-contain">`;
+            }
+        }
+
+        // --- DASHBOARD ---
+        async function loadDashboard() {
+            const { count } = await supabase.from('works').select('*', { count: 'exact', head: true });
+            document.getElementById('dashWorksCount').innerText = count || 0;
+            
+            const { data: pData } = await supabase.from('payments').select('amount');
+            let rev = 0; pData?.forEach(p => rev += Number(p.amount));
+            document.getElementById('dashRevenue').innerText = rev.toLocaleString('en-IN');
+            
+            const { data: eData } = await supabase.from('expenses').select('amount');
+            let exp = 0; eData?.forEach(e => exp += Number(e.amount));
+            document.getElementById('dashExpenses').innerText = exp.toLocaleString('en-IN');
+        }
+
+        // --- AGREEMENT / NEW WORK ---
+        function addAgRow() {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-2 border-b border-gray-100"><input type="text" class="w-full bg-transparent outline-none py-1 i-desc font-medium text-gray-700 focus:text-brand-red" placeholder="Item description..."></td>
+                <td class="p-2 border-b border-gray-100"><input type="number" class="w-full border border-gray-200 rounded-lg p-1 text-center i-qty bg-gray-50 focus:bg-white" value="1" min="1" oninput="calcAgTotal()"></td>
+                <td class="p-2 border-b border-gray-100"><input type="number" class="w-full border border-gray-200 rounded-lg p-1 text-right i-rate bg-gray-50 focus:bg-white" value="0" min="0" oninput="calcAgTotal()"></td>
+                <td class="p-2 border-b border-gray-100 text-right font-bold text-gray-800 i-total">0</td>
+                <td class="p-2 border-b border-gray-100 text-center"><button onclick="this.closest('tr').remove(); calcAgTotal();" class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"><i class="ph ph-trash text-lg"></i></button></td>
+            `;
+            document.getElementById('agItemsBody').appendChild(tr);
+        }
+        
+        function calcAgTotal(isManual = false) {
+            let sub = 0;
+            document.querySelectorAll('#agItemsBody tr').forEach(r => {
+                const q = parseFloat(r.querySelector('.i-qty').value) || 0;
+                const rate = parseFloat(r.querySelector('.i-rate').value) || 0;
+                r.querySelector('.i-total').innerText = (q * rate).toLocaleString('en-IN');
+                sub += (q * rate);
+            });
+            document.getElementById('agSubtotal').innerText = sub.toLocaleString('en-IN');
+            let grand = sub + (parseFloat(document.getElementById('agOtherCharge').value) || 0) - (parseFloat(document.getElementById('agDiscount').value) || 0);
+            
+            const man = document.getElementById('agManualTotal').value;
+            if(man && man !== '') grand = parseFloat(man);
+            document.getElementById('agGrandTotal').innerText = grand.toLocaleString('en-IN');
+            // Store raw numeric value in a data attribute to retrieve it easily later
+            document.getElementById('agGrandTotal').dataset.raw = grand;
+        }
+
+        async function saveAgreement() {
+            const name = document.getElementById('agCustName').value;
+            const phone = document.getElementById('agPhone').value;
+            const date = document.getElementById('agDate').value;
+            
+            if(!name || !phone || !date) return showToast('Customer Name, Phone, and Event Date are required.', 'error');
+            
+            const btn = document.getElementById('btnSaveAg');
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i> <span>Saving to Database...</span>';
+            
+            try {
+                // 1. Save Customer
+                const { data: c, error: cErr } = await supabase.from('customers').insert([{ 
+                    name, 
+                    phone, 
+                    address: document.getElementById('agAddress').value 
+                }]).select().single();
+                
+                if (cErr) throw new Error("Customer Insert Error: " + cErr.message + " (Check RLS Policies)");
+
+                let grand = parseFloat(document.getElementById('agGrandTotal').dataset.raw || 0);
+                
+                // 2. Save Work
+                const { data: w, error: wErr } = await supabase.from('works').insert([{
+                    customer_id: c.id, 
+                    event_date: date, 
+                    venue: document.getElementById('agVenue').value, 
+                    total_amount: grand, 
+                    status: 'Pending'
+                }]).select().single();
+                
+                if (wErr) throw new Error("Work Insert Error: " + wErr.message);
+
+                // 3. Save Items
+                const items = Array.from(document.querySelectorAll('#agItemsBody tr')).map(r => ({
+                    work_id: w.id, 
+                    item_name: r.querySelector('.i-desc').value, 
+                    quantity: parseInt(r.querySelector('.i-qty').value) || 1, 
+                    rate: parseFloat(r.querySelector('.i-rate').value) || 0
+                })).filter(i => i.item_name && i.item_name.trim() !== '');
+                
+                if (items.length > 0) {
+                    const { error: iErr } = await supabase.from('invoice_items').insert(items);
+                    if (iErr) throw new Error("Items Insert Error: " + iErr.message);
+                }
+                
+                showToast('Agreement saved and created successfully!');
+                
+                // Reset form
+                document.getElementById('agCustName').value = '';
+                document.getElementById('agPhone').value = '';
+                document.getElementById('agAddress').value = '';
+                document.getElementById('agEventName').value = '';
+                document.getElementById('agVenue').value = '';
+                document.getElementById('agOtherCharge').value = '0';
+                document.getElementById('agDiscount').value = '0';
+                document.getElementById('agManualTotal').value = '';
+                document.getElementById('agItemsBody').innerHTML = '';
+                addAgRow();
+                calcAgTotal();
+
+                // Go to Works manager
+                changeView('works');
+                
+            } catch(e) { 
+                console.error(e);
+                showToast(e.message, 'error'); 
+            }
+            btn.innerHTML = '<span>Save Agreement</span> <i class="ph ph-check-circle text-xl"></i>';
+        }
+
+        // --- WORKS MANAGER ---
+        async function loadWorks() {
+            const { data, error } = await supabase.from('works').select(`*, customers(name, phone)`).order('created_at', { ascending: false });
+            if (error) { showToast("Failed to load works: " + error.message, 'error'); return; }
+
+            const tb = document.getElementById('worksTbody');
+            tb.innerHTML = '';
+            data?.forEach(w => {
+                let statusColor = w.status === 'Completed' ? 'bg-green-100 text-green-800' : (w.status === 'Running' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800');
+                tb.innerHTML += `
+                    <tr class="hover:bg-brand-red/5 transition-colors group cursor-pointer" onclick="openWorkModal(${w.id})">
+                        <td class="p-4 border-b border-gray-100">
+                            <p class="font-bold text-brand-dark text-base">${w.customers?.name || 'Unknown'}</p>
+                            <p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><i class="ph ph-phone"></i> ${w.customers?.phone || '-'}</p>
+                            <p class="text-xs font-mono bg-gray-100 text-gray-600 inline-block px-1.5 py-0.5 mt-1.5 rounded">#WK-${w.id}</p>
+                        </td>
+                        <td class="p-4 border-b border-gray-100">
+                            <p class="text-sm font-medium"><i class="ph ph-calendar-blank text-brand-red"></i> ${w.event_date || 'N/A'}</p>
+                            <p class="text-xs text-gray-500 mt-1 truncate max-w-[150px]"><i class="ph ph-map-pin"></i> ${w.venue || '-'}</p>
+                        </td>
+                        <td class="p-4 border-b border-gray-100">
+                            <p class="text-lg font-black text-brand-dark">₹${(w.total_amount || 0).toLocaleString('en-IN')}</p>
+                        </td>
+                        <td class="p-4 border-b border-gray-100">
+                            <span class="px-3 py-1 ${statusColor} text-xs font-bold rounded-full">${w.status || 'Pending'}</span>
+                        </td>
+                        <td class="p-4 border-b border-gray-100 text-right">
+                            <button class="btn-gold px-5 py-2.5 rounded-xl font-bold text-xs shadow-md opacity-80 group-hover:opacity-100 transition-opacity">Manage Work <i class="ph ph-arrow-right"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- WORK MODAL (TABS & LOGIC) ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        async function openWorkModal(id) {
+            activeWorkId = id;
+            const modal = document.getElementById('workModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('wmId').innerText = `#WK-${id}`;
+            document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('attDate').value = new Date().toISOString().split('T')[0];
+            
+            // Initialize canvas
+            setTimeout(initSignaturePad, 200);
+
+            // Wait for modal animation, then load data
+            setTimeout(async () => {
+                await loadWorkModalData();
+            }, 100);
+        }
+        
+        function closeWorkModal() { 
+            const modal = document.getElementById('workModal');
+            modal.classList.add('hidden'); 
+            modal.classList.remove('flex'); 
+        }
+
+        async function loadWorkModalData() {
+            try {
+                const { data: work, error } = await supabase.from('works')
+                    .select(`*, customers(*), invoice_items(*), payments(*), labour_attendance(*, staff(name))`)
+                    .eq('id', activeWorkId)
+                    .single();
+                
+                if (error) throw error;
+                activeWorkData = work;
+                
+                // Status
+                document.getElementById('wmStatus').value = work.status || 'Pending';
+                
+                // Payments Tab
+                document.getElementById('wmTotalAmt').innerText = (work.total_amount || 0).toLocaleString('en-IN');
+                let totalPaid = 0;
+                const ptb = document.getElementById('wmPaymentsTbody'); 
+                ptb.innerHTML = '';
+                
+                if(work.payments && work.payments.length > 0) {
+                    work.payments.forEach(p => {
+                        totalPaid += Number(p.amount);
+                        ptb.innerHTML += `<tr><td class="p-4 border-b border-gray-100 font-medium">${p.payment_date}</td><td class="p-4 border-b border-gray-100"><span class="bg-gray-100 px-2 py-1 rounded text-xs font-bold">${p.method}</span></td><td class="p-4 border-b border-gray-100 text-right font-bold text-brand-dark">₹${Number(p.amount).toLocaleString('en-IN')}</td></tr>`;
+                    });
+                } else {
+                    ptb.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No payments recorded yet.</td></tr>';
+                }
+                
+                document.getElementById('wmTotalPaid').innerText = totalPaid.toLocaleString('en-IN');
+                document.getElementById('wmDueAmt').innerText = (work.total_amount - totalPaid).toLocaleString('en-IN');
+
+                // Materials Tab
+                const mtb = document.getElementById('wmMaterialsTbody'); 
+                mtb.innerHTML = '';
+                if(work.invoice_items && work.invoice_items.length > 0) {
+                    work.invoice_items.forEach(i => {
+                        mtb.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="p-4 border-b border-gray-100 font-bold text-gray-700">${i.item_name}</td>
+                            <td class="p-4 border-b border-gray-100 text-center font-bold text-lg">${i.quantity}</td>
+                            <td class="p-4 border-b border-gray-100 text-center">
+                                <input type="number" id="ret_${i.id}" value="${i.returned_qty || 0}" max="${i.quantity}" min="0" class="border border-gray-300 w-20 text-center rounded-lg p-2 font-bold focus:border-brand-gold outline-none">
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-center">
+                                <button onclick="updateReturn(${i.id})" class="text-xs bg-gray-800 hover:bg-brand-red transition-colors text-white px-4 py-2 rounded-xl font-bold shadow-md">Save</button>
+                            </td>
+                        </tr>`;
+                    });
+                } else {
+                     mtb.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No items attached to this work.</td></tr>';
+                }
+
+                // Staff Tab
+                const stb = document.getElementById('wmStaffTbody'); 
+                stb.innerHTML = '';
+                if(work.labour_attendance && work.labour_attendance.length > 0) {
+                    work.labour_attendance.forEach(a => {
+                        stb.innerHTML += `<tr><td class="p-4 border-b border-gray-100 font-bold text-brand-dark"><i class="ph ph-user text-gray-400 mr-1"></i> ${a.staff?.name}</td><td class="p-4 border-b border-gray-100 font-medium text-gray-600">${a.work_date}</td><td class="p-4 border-b border-gray-100 text-right font-black text-green-700">₹${Number(a.wage).toLocaleString('en-IN')}</td></tr>`;
+                    });
+                } else {
+                    stb.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No staff attendance logged yet.</td></tr>';
+                }
+
+                // Signatures Tab
+                if(work.decorator_sign) {
+                    document.getElementById('sigDecPreview').innerHTML = `<img src="${work.decorator_sign}" class="signature-img">`;
+                    document.getElementById('sigDecPreview').classList.remove('border-dashed');
+                } else {
+                    document.getElementById('sigDecPreview').innerHTML = 'No Signature';
+                    document.getElementById('sigDecPreview').classList.add('border-dashed');
+                }
+                
+                if(work.customer_sign) {
+                    document.getElementById('sigCustPreview').innerHTML = `<img src="${work.customer_sign}" class="signature-img">`;
+                    document.getElementById('sigCustPreview').classList.remove('border-dashed');
+                    // Hide drawing pad if already signed
+                    if (work.consent_time) toggleSigMode('upload'); 
+                } else {
+                    document.getElementById('sigCustPreview').innerHTML = 'No Signature Yet';
+                    document.getElementById('sigCustPreview').classList.add('border-dashed');
+                    toggleSigMode('draw');
+                    clearSignature();
+                    document.getElementById('consentCheck').checked = false;
+                }
+
+            } catch(e) {
+                console.error("Modal load error:", e);
+                showToast("Failed to load work details.", "error");
+            }
+        }
+
+        async function updateWorkStatus() {
+            const s = document.getElementById('wmStatus').value;
+            const { error } = await supabase.from('works').update({ status: s }).eq('id', activeWorkId);
+            if(error) showToast(error.message, 'error');
+            else { showToast('Status updated successfully'); loadWorks(); }
+        }
+        
+        async function updateReturn(itemId) {
+            const val = document.getElementById(`ret_${itemId}`).value;
+            const { error } = await supabase.from('invoice_items').update({ returned_qty: val }).eq('id', itemId);
+            if(error) showToast(error.message, 'error');
+            else showToast('Item return logged successfully');
+        }
+
+        async function addPayment() {
+            const amt = document.getElementById('payAmt').value;
+            const method = document.getElementById('payMethod').value;
+            const date = document.getElementById('payDate').value;
+            if(!amt) return showToast('Please enter an amount', 'error');
+            
+            const { error } = await supabase.from('payments').insert([{ work_id: activeWorkId, amount: amt, method, payment_date: date }]);
+            if(error) { showToast(error.message, 'error'); }
+            else { 
+                document.getElementById('payAmt').value = ''; 
+                showToast('Payment Added successfully'); 
+                loadWorkModalData(); 
+            }
+        }
+
+        async function addAttendance() {
+            const sid = document.getElementById('attStaff').value;
+            const d = document.getElementById('attDate').value;
+            const w = document.getElementById('attWage').value;
+            if(!sid || !w) return showToast('Staff and Wage are required', 'error');
+            
+            const { error } = await supabase.from('labour_attendance').insert([{ work_id: activeWorkId, staff_id: sid, work_date: d, wage: w }]);
+            if(error) { showToast(error.message, 'error'); }
+            else { showToast('Staff attendance logged successfully'); loadWorkModalData(); }
+        }
+
+        // --- SIGNATURES ---
+        async function uploadSignature(type) {
+            const inputId = type === 'decorator' ? 'fileDecSig' : 'fileCustSig';
+            const fileInput = document.getElementById(inputId);
+            const file = fileInput.files[0];
+            
+            if(!file) return showToast('Select an image file first', 'error');
+            
+            const ext = file.name.split('.').pop();
+            const filePath = `sig_${type}_${activeWorkId}_${Date.now()}.${ext}`;
+            
+            showToast('Uploading signature... please wait.');
+            try {
+                // Upload to Supabase Storage Bucket named "agreements"
+                const { error: uploadError } = await supabase.storage.from('agreements').upload(filePath, file);
+                if(uploadError) throw new Error("Upload Error: " + uploadError.message);
+                
+                // Get Public URL
+                const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
+                
+                // Update Works table
+                const updateObj = {};
+                if(type === 'decorator') updateObj.decorator_sign = data.publicUrl;
+                if(type === 'customer') updateObj.customer_sign = data.publicUrl;
+                
+                const { error: updateError } = await supabase.from('works').update(updateObj).eq('id', activeWorkId);
+                if(updateError) throw new Error("DB Update Error: " + updateError.message);
+
+                showToast('Signature Uploaded & Saved!'); 
+                fileInput.value = ''; // clear input
+                loadWorkModalData();
+            } catch(e) { 
+                console.error(e);
+                showToast(e.message, 'error'); 
+            }
+        }
+
+        // --- DIGITAL SIGNATURE & METADATA ---
+        function toggleSigMode(mode) {
+            if(mode === 'draw') {
+                document.getElementById('modeSigDraw').classList.remove('hidden');
+                document.getElementById('modeSigUpload').classList.add('hidden');
+                document.getElementById('btnSigDraw').className = "flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red";
+                document.getElementById('btnSigUpload').className = "flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800";
+                setTimeout(initSignaturePad, 50); // Re-init geometry
+            } else {
+                document.getElementById('modeSigDraw').classList.add('hidden');
+                document.getElementById('modeSigUpload').classList.remove('hidden');
+                document.getElementById('btnSigUpload').className = "flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red";
+                document.getElementById('btnSigDraw').className = "flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800";
+            }
+        }
+
+        function initSignaturePad() {
+            sigCanvas = document.getElementById('sigCanvas');
+            if(!sigCanvas) return;
+            sigCtx = sigCanvas.getContext('2d');
+            
+            // Adjust canvas resolution to visual size
+            const rect = sigCanvas.getBoundingClientRect();
+            sigCanvas.width = rect.width;
+            sigCanvas.height = rect.height;
+
+            // Remove existing listeners to prevent duplicates
+            sigCanvas.replaceWith(sigCanvas.cloneNode(true));
+            sigCanvas = document.getElementById('sigCanvas');
+            sigCtx = sigCanvas.getContext('2d');
+
+            const startDraw = (e) => {
+                isDrawing = true;
+                draw(e);
+            };
+            const stopDraw = () => { isDrawing = false; sigCtx.beginPath(); };
+            
+            const draw = (e) => {
+                if(!isDrawing) return;
+                e.preventDefault();
+                const rect = sigCanvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+                
+                sigCtx.lineWidth = 2.5;
+                sigCtx.lineCap = 'round';
+                sigCtx.strokeStyle = '#800000'; // Brand red ink
+                
+                sigCtx.lineTo(x, y);
+                sigCtx.stroke();
+                sigCtx.beginPath();
+                sigCtx.moveTo(x, y);
+            };
+
+            sigCanvas.addEventListener('mousedown', startDraw);
+            sigCanvas.addEventListener('mousemove', draw);
+            sigCanvas.addEventListener('mouseup', stopDraw);
+            sigCanvas.addEventListener('mouseout', stopDraw);
+            
+            sigCanvas.addEventListener('touchstart', startDraw, {passive: false});
+            sigCanvas.addEventListener('touchmove', draw, {passive: false});
+            sigCanvas.addEventListener('touchend', stopDraw);
+        }
+
+        function clearSignature() {
+            if(sigCtx && sigCanvas) {
+                sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+            }
+        }
+
+        async function captureConsentMetadata() {
+            let ip = "Unknown IP", locStr = "Location Denied";
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                ip = (await res.json()).ip;
+            } catch(e) {}
+
+            const getLoc = () => new Promise((resolve) => {
+                if (!navigator.geolocation) resolve(locStr);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve(`Lat:${pos.coords.latitude.toFixed(4)},Lng:${pos.coords.longitude.toFixed(4)}`),
+                    (err) => resolve(locStr),
+                    { timeout: 4000 }
+                );
+            });
+            locStr = await getLoc();
+            return { ip, loc: locStr, time: new Date().toLocaleString('en-IN') };
+        }
+
+        async function saveDigitalCustomerSignature() {
+            if(!document.getElementById('consentCheck').checked) {
+                return showToast('You must agree to the T&C to proceed.', 'error');
+            }
+            
+            // Check if canvas is empty
+            const blank = document.createElement('canvas');
+            blank.width = sigCanvas.width; blank.height = sigCanvas.height;
+            if(sigCanvas.toDataURL() === blank.toDataURL()) {
+                return showToast('Please provide a signature on the pad.', 'error');
+            }
+
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Saving & Verifying...';
+            btn.disabled = true;
+
+            showToast('Capturing Location & IP for Verification...', 'info');
+            const meta = await captureConsentMetadata();
+
+            sigCanvas.toBlob(async (blob) => {
+                const filePath = `sig_digital_${activeWorkId}_${Date.now()}.png`;
+                try {
+                    const { error: uploadErr } = await supabase.storage.from('agreements').upload(filePath, blob);
+                    if(uploadErr) throw uploadErr;
+
+                    const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
+                    
+                    const { error: updateErr } = await supabase.from('works').update({
+                        customer_sign: data.publicUrl,
+                        customer_ip: meta.ip,
+                        customer_location: meta.loc,
+                        consent_time: meta.time
+                    }).eq('id', activeWorkId);
+
+                    if(updateErr) throw updateErr;
+
+                    showToast('Digital Signature Saved Securely!');
+                    loadWorkModalData();
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            });
+        }
+
+        function shareToWhatsApp() {
+            if(!activeWorkData || !activeWorkData.customers) return;
+            const phone = activeWorkData.customers.phone;
+            const msg = `Hello ${activeWorkData.customers.name},\n\nHere is your Decoration Work Agreement (WK-${activeWorkData.id}) from *DE DECORATORS*.\n\nTotal Contract Amount: ₹${activeWorkData.total_amount}\n\nPlease download your attached PDF receipt for full details and terms.\n\nThank you!`;
+            
+            const encodedMsg = encodeURIComponent(msg);
+            let waUrl = `https://wa.me/91${phone.replace(/\D/g, '')}?text=${encodedMsg}`;
+            
+            if(!phone || phone.length < 10) {
+                 waUrl = `https://wa.me/?text=${encodedMsg}`; // Open picker if no valid phone
+            }
+            window.open(waUrl, '_blank');
+            showToast('Opening WhatsApp! Please attach the downloaded PDF manually.', 'info');
+        }
+
+        // --- PDF GENERATION ---
+        async function generatePDF(langCode) {
+            if(!activeWorkData) return;
+            const w = activeWorkData; 
+            const c = w.customers;
+            const t = document.getElementById(`template-${langCode}`);
+            
+            // --- INJECT CUSTOM LOGO ---
+            const savedLogo = localStorage.getItem('dedecorators_logo');
+            const imgEl = t.querySelector(langCode === 'en' ? '#pdfLogoImgEn' : '#pdfLogoImgBn');
+            const textEl = t.querySelector(langCode === 'en' ? '#pdfLogoTextEn' : '#pdfLogoTextBn');
+            
+            if (savedLogo) {
+                imgEl.src = savedLogo;
+                imgEl.classList.remove('hidden');
+                textEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                textEl.classList.remove('hidden');
+            }
+            
+            // Populate Text
+            t.querySelector('.pd-id').innerText = `WK-${w.id}`;
+            t.querySelector('.pd-date').innerText = new Date().toLocaleDateString('en-IN');
+            t.querySelector('.pd-cname').innerText = c.name;
+            t.querySelector('.pd-cphone').innerText = c.phone || 'N/A';
+            t.querySelector('.pd-ename').innerText = 'Decoration Work';
+            t.querySelector('.pd-edate').innerText = w.event_date;
+            t.querySelector('.pd-evenue').innerText = w.venue || 'N/A';
+            
+            // Populate Items Table
+            const tbody = t.querySelector('.pd-items-tbody'); 
+            tbody.innerHTML = '';
+            if(w.invoice_items && w.invoice_items.length > 0) {
+                w.invoice_items.forEach(i => {
+                    tbody.innerHTML += `<tr><td class="border p-2 font-medium">${i.item_name}</td><td class="border p-2 text-center">${i.quantity}</td><td class="border p-2 text-right">${(i.rate || 0).toLocaleString('en-IN')}</td><td class="border p-2 text-right font-bold">${((i.quantity * i.rate) || 0).toLocaleString('en-IN')}</td></tr>`;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="border p-4 text-center italic text-gray-500">Lump Sum Contract - No detailed items</td></tr>`;
+            }
+            t.querySelector('.pd-grand').innerText = (w.total_amount || 0).toLocaleString('en-IN');
+
+            // Inject Signatures dynamically
+            t.querySelector('.pd-sig-dec').innerHTML = w.decorator_sign ? `<img src="${w.decorator_sign}" class="signature-img">` : '';
+            t.querySelector('.pd-sig-cust').innerHTML = w.customer_sign ? `<img src="${w.customer_sign}" class="signature-img">` : '';
+            t.querySelectorAll('.pd-cname').forEach(el => el.innerText = c.name);
+
+            // Inject Metadata if signed digitally
+            const metaDivs = t.querySelectorAll('.pd-consent-meta');
+            if(w.consent_time) {
+                metaDivs.forEach(el => {
+                    el.classList.remove('hidden');
+                    el.querySelector('.pd-meta-time').innerText = w.consent_time;
+                    el.querySelector('.pd-meta-ip').innerText = w.customer_ip || 'N/A';
+                    el.querySelector('.pd-meta-loc').innerText = w.customer_location || 'N/A';
+                });
+            } else {
+                metaDivs.forEach(el => el.classList.add('hidden'));
+            }
+
+            // Render Logic
+            const renderContainer = document.getElementById('pdf-render-container');
+            renderContainer.style.left = '0';
+            renderContainer.style.top = '0';
+            renderContainer.style.zIndex = '-10'; // visible for render, but behind everything
+
+            showToast('Generating HD PDF... Please wait.', 'info');
+            try {
+                const canvas = await html2canvas(t, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
+                
+                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                const pWidth = pdf.internal.pageSize.getWidth();
+                const pHeight = (canvas.height * pWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'JPEG', 0, 0, pWidth, pHeight);
+                pdf.save(`DE_Decorators_Agreement_WK${w.id}_${c.name.replace(/\s+/g, '_')}.pdf`);
+                
+                showToast('PDF Downloaded Successfully!');
+            } catch(e) { 
+                console.error("PDF Gen Error:", e);
+                showToast('PDF Generation failed. See console.', 'error'); 
+            }
+            
+            // Hide container again
+            renderContainer.style.left = '-9999px';
+        }
+
+        // --- CUSTOMER REMOTE PORTAL LOGIC ---
+        
+        let cpCanvas, cpCtx, cpIsDrawing = false;
+
+        function sendSignatureLink() {
+            if(!activeWorkData || !activeWorkData.customers) return showToast("No active work selected.", "error");
+            const phone = activeWorkData.customers.phone;
+            const link = `${window.location.origin}${window.location.pathname}?sign_work=${activeWorkId}`;
+            const msg = `Hello ${activeWorkData.customers.name},\n\nPlease review and digitally sign your Decoration Work Agreement for *DE DECORATORS* using this secure link:\n\n${link}\n\nThank you!`;
+            
+            const encodedMsg = encodeURIComponent(msg);
+            let waUrl = `https://wa.me/91${phone.replace(/\D/g, '')}?text=${encodedMsg}`;
+            
+            if(!phone || phone.length < 10) waUrl = `https://wa.me/?text=${encodedMsg}`;
+            window.open(waUrl, '_blank');
+        }
+
+        async function initCustomerPortal(workId) {
+            // Hide everything else
+            document.getElementById('auth-screen').classList.add('hidden', 'opacity-0');
+            document.getElementById('app-screen').classList.add('hidden', 'opacity-0');
+            const cp = document.getElementById('customer-portal-screen');
+            cp.classList.remove('hidden');
+            cp.classList.add('flex');
+
+            const cpContent = document.getElementById('cp-content');
+
+            try {
+                // Fetch public work details
+                const { data: work, error } = await supabase.from('works')
+                    .select('*, customers(name, phone), invoice_items(*)').eq('id', workId).single();
+                
+                if(error || !work) throw new Error("Agreement not found or invalid link.");
+
+                if(work.customer_sign) {
+                     cpContent.innerHTML = `
+                        <div class="text-center py-10 flex flex-col items-center h-full justify-center">
+                            <i class="ph ph-check-circle text-6xl text-green-500 mb-4 drop-shadow-md"></i>
+                            <h2 class="text-2xl font-black text-gray-800 mb-2">Already Signed</h2>
+                            <p class="text-gray-500 font-medium text-center">This agreement has already been digitally verified and signed. Thank you for choosing DE DECORATORS!</p>
+                        </div>`;
+                     return;
+                }
+
+                // Render Agreement UI for Customer
+                cpContent.innerHTML = `
+                    <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm text-sm">
+                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-200">
+                            <i class="ph ph-file-text text-2xl text-brand-red"></i>
+                            <h3 class="font-bold text-gray-800 text-lg">Agreement Summary</h3>
+                        </div>
+                        <p class="mb-1"><strong>Customer:</strong> ${work.customers?.name}</p>
+                        <p class="mb-1"><strong>Event Date:</strong> <span class="text-brand-red font-bold">${work.event_date || 'N/A'}</span></p>
+                        <p class="mb-1"><strong>Venue:</strong> ${work.venue || 'N/A'}</p>
+                        <div class="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
+                            <span class="font-bold text-gray-600">Total Contract Value:</span>
+                            <span class="font-black text-brand-dark text-xl">₹${(work.total_amount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-gray-600 border p-5 rounded-2xl bg-white shadow-inner max-h-48 overflow-y-auto">
+                        <h3 class="font-bold text-sm mb-3 text-brand-red border-b pb-2">Terms & Conditions</h3>
+                        <ul class="list-disc pl-4 space-y-2 font-medium">
+                            <li>The customer shall pay the agreed advance to confirm the booking.</li>
+                            <li>The outstanding balance shall be paid according to the agreed schedule.</li>
+                            <li>If any rented item is lost or damaged, applicable compensation will be determined.</li>
+                            <li>Additional work or items shall be charged separately.</li>
+                            <li>Both parties agree to the final terms documented in this agreement.</li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-4 pt-2">
+                        <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl text-xs text-blue-900 shadow-sm">
+                            <label class="flex items-start gap-3 cursor-pointer font-medium">
+                                <input type="checkbox" id="cpConsent" class="mt-0.5 rounded text-brand-red focus:ring-brand-red w-5 h-5">
+                                <span>I have read and accept the Agreement and Terms. I voluntarily consent to record my IP and Location for strict digital verification.</span>
+                            </label>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-2 tracking-wider"><i class="ph ph-signature"></i> Draw your signature below</label>
+                            <div class="border-2 border-dashed border-gray-300 rounded-2xl overflow-hidden bg-white touch-none relative">
+                                <canvas id="cpCanvas" class="w-full h-48 bg-transparent cursor-crosshair" style="touch-action: none;"></canvas>
+                                <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5" id="cpCanvasHint">
+                                    <span class="font-serif text-3xl font-black text-brand-dark">Sign Here</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-[10px] text-gray-400">Please sign clearly inside the box</span>
+                                <button onclick="clearCpSignature()" class="text-xs font-bold text-gray-500 hover:text-brand-red bg-gray-100 px-3 py-1.5 rounded-lg"><i class="ph ph-eraser"></i> Clear</button>
+                            </div>
+                        </div>
+
+                        <button onclick="submitRemoteSignature(${workId})" id="btnCpSubmit" class="bg-gradient-to-r from-brand-red to-brand-reddark hover:shadow-lg transition-all text-white w-full py-4 rounded-xl font-bold text-lg shadow-md flex items-center justify-center gap-2 mt-4">
+                            <i class="ph ph-fingerprint text-2xl"></i> Agree & Submit Signature
+                        </button>
+                    </div>
+                `;
+
+                // Initialize canvas after a tiny delay to ensure DOM is ready
+                setTimeout(initCpSignaturePad, 150);
+
+            } catch (e) {
+                cpContent.innerHTML = `
+                    <div class="text-center py-10 text-red-500 flex flex-col items-center h-full justify-center">
+                        <i class="ph ph-warning-circle text-5xl mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">Error Loading Agreement</h3>
+                        <p class="text-sm font-medium text-gray-600">${e.message}</p>
+                    </div>`;
+            }
+        }
+
+        function initCpSignaturePad() {
+            cpCanvas = document.getElementById('cpCanvas');
+            if(!cpCanvas) return;
+            cpCtx = cpCanvas.getContext('2d');
+            
+            const rect = cpCanvas.getBoundingClientRect();
+            cpCanvas.width = rect.width;
+            cpCanvas.height = rect.height;
+
+            const startDraw = (e) => {
+                cpIsDrawing = true;
+                document.getElementById('cpCanvasHint').style.display = 'none'; // hide hint
+                draw(e);
+            };
+            const stopDraw = () => { cpIsDrawing = false; cpCtx.beginPath(); };
+            
+            const draw = (e) => {
+                if(!cpIsDrawing) return;
+                e.preventDefault();
+                const rect = cpCanvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+                
+                cpCtx.lineWidth = 3;
+                cpCtx.lineCap = 'round';
+                cpCtx.strokeStyle = '#111827'; // Dark ink for customer
+                
+                cpCtx.lineTo(x, y);
+                cpCtx.stroke();
+                cpCtx.beginPath();
+                cpCtx.moveTo(x, y);
+            };
+
+            cpCanvas.addEventListener('mousedown', startDraw);
+            cpCanvas.addEventListener('mousemove', draw);
+            cpCanvas.addEventListener('mouseup', stopDraw);
+            cpCanvas.addEventListener('mouseout', stopDraw);
+            
+            cpCanvas.addEventListener('touchstart', startDraw, {passive: false});
+            cpCanvas.addEventListener('touchmove', draw, {passive: false});
+            cpCanvas.addEventListener('touchend', stopDraw);
+        }
+
+        function clearCpSignature() {
+            if(cpCtx && cpCanvas) {
+                cpCtx.clearRect(0, 0, cpCanvas.width, cpCanvas.height);
+                document.getElementById('cpCanvasHint').style.display = 'flex';
+            }
+        }
+
+        async function submitRemoteSignature(workId) {
+            if(!document.getElementById('cpConsent').checked) {
+                alert('You must check the consent box to proceed.');
+                return;
+            }
+            
+            // Check if empty
+            const blank = document.createElement('canvas');
+            blank.width = cpCanvas.width; blank.height = cpCanvas.height;
+            if(cpCanvas.toDataURL() === blank.toDataURL()) {
+                alert('Please provide your signature on the pad.');
+                return;
+            }
+
+            const btn = document.getElementById('btnCpSubmit');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> Verifying & Saving...';
+            btn.disabled = true;
+
+            // Capture Metadata (IP & Location)
+            let ip = "Unknown IP", locStr = "Location Denied";
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                ip = (await res.json()).ip;
+            } catch(e) {}
+
+            const getLoc = () => new Promise((resolve) => {
+                if (!navigator.geolocation) resolve(locStr);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve(`Lat:${pos.coords.latitude.toFixed(4)},Lng:${pos.coords.longitude.toFixed(4)}`),
+                    (err) => resolve(locStr),
+                    { timeout: 5000 }
+                );
+            });
+            locStr = await getLoc();
+            const timeStr = new Date().toLocaleString('en-IN');
+
+            cpCanvas.toBlob(async (blob) => {
+                const filePath = `sig_remote_${workId}_${Date.now()}.png`;
+                try {
+                    const { error: uploadErr } = await supabase.storage.from('agreements').upload(filePath, blob);
+                    if(uploadErr) throw uploadErr;
+
+                    const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
+                    
+                    const { error: updateErr } = await supabase.from('works').update({
+                        customer_sign: data.publicUrl,
+                        customer_ip: ip,
+                        customer_location: locStr,
+                        consent_time: timeStr
+                    }).eq('id', workId);
+
+                    if(updateErr) throw updateErr;
+
+                    // Success UI
+                    document.getElementById('cp-content').innerHTML = `
+                        <div class="text-center py-10 flex flex-col items-center justify-center h-full">
+                            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                                <i class="ph ph-check-circle text-5xl text-green-500"></i>
+                            </div>
+                            <h2 class="text-2xl font-black text-brand-dark mb-2">Signature Accepted!</h2>
+                            <p class="text-gray-500 font-medium">Your digital agreement has been securely signed and recorded. The decorator will share the final PDF copy with you shortly.</p>
+                        </div>`;
+                } catch (err) {
+                    alert('Error saving signature: ' + err.message);
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        // --- STAFF MANAGEMENT ---
+        async function loadStaffDropdown() {
+            const { data } = await supabase.from('staff').select('*');
+            staffListCache = data || [];
+            const sel = document.getElementById('attStaff'); 
+            sel.innerHTML = '<option value="">Select Staff Member...</option>';
+            staffListCache.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            
+            sel.addEventListener('change', (e) => {
+                const st = staffListCache.find(x => x.id == e.target.value);
+                if(st) document.getElementById('attWage').value = st.daily_wage || 0;
+            });
+        }
+        
+        async function loadStaff() {
+            const { data, error } = await supabase.from('staff').select('*').order('name');
+            if(error) return;
+            const tb = document.getElementById('staffTbody'); 
+            tb.innerHTML = '';
+            data?.forEach(s => {
+                tb.innerHTML += `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 border-b border-gray-100">
+                        <p class="font-bold text-brand-dark text-base"><i class="ph ph-user-circle text-gray-400 text-lg align-middle"></i> ${s.name}</p>
+                        <p class="text-xs text-gray-500 mt-1"><i class="ph ph-phone"></i> ${s.phone||'-'}</p>
+                    </td>
+                    <td class="p-4 border-b border-gray-100 text-right">
+                        <span class="font-bold bg-green-50 text-green-800 px-3 py-1.5 rounded-lg border border-green-100">₹${(s.daily_wage||0).toLocaleString('en-IN')} / day</span>
+                    </td>
+                </tr>`;
+            });
+        }
+        
+        async function addStaff() {
+            const name = document.getElementById('stName').value;
+            const phone = document.getElementById('stPhone').value;
+            const wage = document.getElementById('stWage').value;
+            if(!name) return showToast('Staff name is required.', 'error');
+            
+            const { error } = await supabase.from('staff').insert([{ name, phone, daily_wage: wage }]);
+            if(error) showToast(error.message, 'error');
+            else {
+                document.getElementById('stName').value = ''; 
+                document.getElementById('stPhone').value = ''; 
+                document.getElementById('stWage').value = ''; 
+                loadStaff(); 
+                loadStaffDropdown(); 
+                showToast('Staff member added successfully!');
+            }
+        }
+
+        // --- EXPENSES ---
+        async function loadExpenses() {
+            const { data, error } = await supabase.from('expenses').select('*').order('expense_date', { ascending: false });
+            if(error) return;
+            
+            const tb = document.getElementById('expensesTbody'); 
+            tb.innerHTML = '';
+            data?.forEach(e => {
+                let catColor = 'bg-gray-100 text-gray-800';
+                if(e.category === 'Materials') catColor = 'bg-blue-100 text-blue-800';
+                if(e.category === 'Transport') catColor = 'bg-purple-100 text-purple-800';
+                if(e.category === 'Labour') catColor = 'bg-orange-100 text-orange-800';
+
+                tb.innerHTML += `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 border-b border-gray-100 font-medium text-gray-600">${e.expense_date}</td>
+                    <td class="p-4 border-b border-gray-100 font-bold text-gray-800">${e.description}</td>
+                    <td class="p-4 border-b border-gray-100"><span class="px-2.5 py-1 ${catColor} rounded-lg text-xs font-bold">${e.category}</span></td>
+                    <td class="p-4 border-b border-gray-100 text-right font-black text-brand-red">₹${Number(e.amount).toLocaleString('en-IN')}</td>
+                </tr>`;
+            });
+        }
+        
+        async function addExpense() {
+            const desc = document.getElementById('expDesc').value;
+            const cat = document.getElementById('expCategory').value;
+            const amt = document.getElementById('expAmount').value;
+            if(!amt || !desc) return showToast('Description and Amount are required.', 'error');
+            
+            const { error } = await supabase.from('expenses').insert([{ description: desc, category: cat, amount: amt }]);
+            if(error) showToast(error.message, 'error');
+            else {
+                document.getElementById('expDesc').value = ''; 
+                document.getElementById('expAmount').value = '';
+                loadExpenses(); 
+                showToast('Expense logged successfully!');
+            }
+        }
+
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const signWorkId = urlParams.get('sign_work');
+            
+            if (signWorkId) {
+                // Route to Customer Portal
+                initCustomerPortal(signWorkId);
+            } else {
+                // Route to Admin Panel
+                checkAuth();
+            }
+        };
+    </script>
+</body>
+</html>
