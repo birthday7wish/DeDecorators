@@ -12,6 +12,9 @@
     <!-- PDF Generation Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Analytics & QR Code Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -90,7 +93,8 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 25px -10px rgba(158, 27, 27, 0.6); }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 25px -10px rgba(158, 27, 27, 0.6); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         
         .btn-gold {
             background: linear-gradient(135deg, #F3D573 0%, #AA8A2A 100%);
@@ -149,8 +153,8 @@
         }
         
         /* Signature Canvas */
-        #sigCanvas {
-            touch-action: none; /* Prevents scrolling while signing on mobile */
+        #sigCanvas, #cpCanvas {
+            touch-action: none;
             cursor: crosshair;
         }
     </style>
@@ -179,7 +183,6 @@
 
     <!-- LOGIN SCREEN -->
     <div id="auth-screen" class="absolute inset-0 z-[100] bg-gray-900 flex items-center justify-center p-4 transition-opacity duration-500 overflow-hidden">
-        <!-- Auth Background -->
         <div class="absolute inset-0 overflow-hidden">
             <div class="bg-blob w-96 h-96 bg-brand-red right-0 top-0 opacity-40"></div>
             <div class="bg-blob w-96 h-96 bg-brand-gold left-0 bottom-0 opacity-20" style="animation-delay: -5s;"></div>
@@ -234,14 +237,12 @@
 
         <!-- MAIN CONTENT -->
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] relative">
-            <!-- Mobile Header -->
             <div class="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-30">
                 <div class="flex items-center gap-2 font-serif font-bold text-brand-dark"><span class="text-brand-red">DE</span> DECORATORS</div>
                 <button onclick="toggleSidebar()" class="text-2xl text-gray-600"><i class="ph ph-list"></i></button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
-                <!-- Decorative Background Blobs for Main Content -->
                 <div class="bg-blob w-[500px] h-[500px] bg-brand-gold opacity-10 top-[-10%] left-[-10%] mix-blend-multiply"></div>
                 <div class="bg-blob w-[600px] h-[600px] bg-brand-red opacity-5 bottom-[-20%] right-[-10%] mix-blend-multiply" style="animation-delay: -3s;"></div>
 
@@ -251,6 +252,7 @@
                         <h2 class="text-3xl font-serif font-bold text-brand-dark">Business Overview</h2>
                         <p class="text-gray-500 font-medium">Welcome back. Here is what is happening today.</p>
                     </div>
+                    
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="glass-panel p-6 rounded-3xl border-t-4 border-t-brand-gold transform hover:-translate-y-2 transition-all duration-300">
                             <div class="text-sm font-bold text-gray-500 mb-2 flex justify-between uppercase tracking-wider">Total Active Works <div class="w-12 h-12 bg-brand-gold/10 rounded-2xl flex items-center justify-center"><i class="ph ph-briefcase text-brand-golddark text-2xl"></i></div></div>
@@ -263,6 +265,14 @@
                         <div class="glass-panel p-6 rounded-3xl border-t-4 border-t-brand-red transform hover:-translate-y-2 transition-all duration-300">
                             <div class="text-sm font-bold text-gray-500 mb-2 flex justify-between uppercase tracking-wider">Total Expenses <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center"><i class="ph ph-trend-down text-brand-red text-2xl"></i></div></div>
                             <div class="text-4xl font-black text-brand-dark mt-4">₹<span id="dashExpenses">0</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Chart.js Analytics -->
+                    <div class="glass-panel p-6 rounded-3xl border border-gray-200 mt-8 h-80">
+                        <h3 class="text-lg font-serif font-bold text-brand-dark mb-4">Financial Analytics (Revenue vs Expenses)</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="financialChart"></canvas>
                         </div>
                     </div>
                     
@@ -304,7 +314,16 @@
                             <div class="space-y-5 bg-white/50 p-6 rounded-2xl border border-white/60">
                                 <h4 class="text-sm font-bold text-brand-red uppercase tracking-widest flex items-center gap-2"><i class="ph ph-calendar-star text-lg"></i> Event Details</h4>
                                 <input type="text" id="agEventName" class="input-pro bg-white" placeholder="Event Type (e.g., Wedding)">
-                                <input type="date" id="agDate" class="input-pro bg-white">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-xs text-gray-500 font-bold ml-1">Start Date</label>
+                                        <input type="date" id="agStartDate" class="input-pro bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-500 font-bold ml-1">End Date</label>
+                                        <input type="date" id="agEndDate" class="input-pro bg-white">
+                                    </div>
+                                </div>
                                 <input type="text" id="agVenue" class="input-pro bg-white" placeholder="Venue Location">
                             </div>
                         </div>
@@ -346,14 +365,21 @@
                 <!-- 3. WORKS MANAGER -->
                 <div id="view-works" class="view-section slide-up hidden max-w-6xl mx-auto space-y-6 relative z-10">
                     <div class="glass-panel p-8 rounded-3xl">
-                        <div class="flex justify-between items-center mb-8 border-b pb-4">
+                        <div class="flex flex-wrap justify-between items-center mb-8 gap-4 border-b pb-4">
                             <h3 class="text-2xl font-serif font-bold text-brand-dark">Works & Bookings Manager</h3>
-                            <button onclick="loadWorks()" class="text-gray-500 hover:text-brand-red"><i class="ph ph-arrows-clockwise text-2xl"></i></button>
+                            <div class="flex items-center gap-3">
+                                <!-- Search Filter -->
+                                <div class="relative">
+                                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                                    <input type="text" id="searchWorksInput" onkeyup="filterWorks()" placeholder="Search Name, Phone or ID..." class="input-pro pl-10 py-2 w-64 bg-gray-50 text-sm">
+                                </div>
+                                <button onclick="loadWorks()" class="text-gray-500 hover:text-brand-red p-2 bg-gray-100 rounded-lg"><i class="ph ph-arrows-clockwise text-xl"></i></button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
                             <table class="w-full text-left min-w-[700px]">
                                 <thead class="bg-gray-50 text-xs uppercase font-bold text-gray-500 tracking-wider">
-                                    <tr><th class="p-4">Customer & Work</th><th class="p-4">Date & Venue</th><th class="p-4">Total Amount</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr>
+                                    <tr><th class="p-4">Customer & Work</th><th class="p-4">Duration & Venue</th><th class="p-4">Total Amount</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr>
                                 </thead>
                                 <tbody id="worksTbody" class="divide-y text-sm"></tbody>
                             </table>
@@ -434,7 +460,7 @@
                 <button class="tab-btn active" onclick="switchTab('wm-tab-payments')"><i class="ph ph-wallet mr-1"></i> Payments</button>
                 <button class="tab-btn" onclick="switchTab('wm-tab-materials')"><i class="ph ph-package mr-1"></i> Materials Tracking</button>
                 <button class="tab-btn" onclick="switchTab('wm-tab-staff')"><i class="ph ph-users mr-1"></i> Staff Attendance</button>
-                <button class="tab-btn" onclick="switchTab('wm-tab-docs')"><i class="ph ph-file-pdf mr-1"></i> Signatures & PDF</button>
+                <button class="tab-btn" onclick="switchTab('wm-tab-docs')"><i class="ph ph-file-pdf mr-1"></i> Legal & PDF</button>
             </div>
 
             <!-- Content Area -->
@@ -517,46 +543,15 @@
                         </div>
                         
                         <div class="p-6 border rounded-2xl bg-white shadow-sm">
-                            <h4 class="font-bold text-sm text-gray-700 uppercase tracking-wider mb-4 border-b pb-2">Customer Signature & Consent</h4>
-                            
-                            <!-- Tabs for Draw vs Upload -->
-                            <div class="flex gap-2 mb-4 bg-gray-100 p-1 rounded-lg">
-                                <button onclick="toggleSigMode('draw')" id="btnSigDraw" class="flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red">Draw Digital</button>
-                                <button onclick="toggleSigMode('upload')" id="btnSigUpload" class="flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800">Manual Upload</button>
-                            </div>
-
+                            <h4 class="font-bold text-sm text-gray-700 uppercase tracking-wider mb-4 border-b pb-2">Customer Digital Consent</h4>
                             <div id="sigCustPreview" class="mb-2 h-16 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center text-sm font-medium text-gray-400">No Signature Yet</div>
 
-                            <!-- Draw Mode -->
-                            <div id="modeSigDraw" class="space-y-3">
-                                <div class="border border-gray-300 rounded-xl overflow-hidden bg-white">
-                                    <canvas id="sigCanvas" class="w-full h-32 bg-gray-50" width="400" height="150"></canvas>
-                                </div>
-                                <div class="flex justify-end"><button onclick="clearSignature()" class="text-xs font-bold text-gray-500 hover:text-brand-red"><i class="ph ph-eraser"></i> Clear Pad</button></div>
-                                
-                                <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl text-xs text-blue-800">
-                                    <label class="flex items-start gap-2 cursor-pointer font-medium">
-                                        <input type="checkbox" id="consentCheck" class="mt-0.5 rounded text-brand-red focus:ring-brand-red">
-                                        <span>I have read and accept the Terms & Conditions. I consent to record my IP and Location for digital verification.</span>
-                                    </label>
-                                </div>
-                                <button onclick="saveDigitalCustomerSignature()" class="bg-brand-red hover:bg-brand-reddark transition-colors text-white px-4 py-2 rounded-xl text-sm font-bold w-full flex items-center justify-center gap-2">
-                                    <i class="ph ph-fingerprint"></i> Save Digital Signature & Consent
-                                </button>
-                            </div>
-
-                            <!-- Upload Mode -->
-                            <div id="modeSigUpload" class="hidden mt-auto pt-4 border-t">
-                                <input type="file" id="fileCustSig" accept="image/*" class="text-xs mb-3 w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700">
-                                <button onclick="uploadSignature('customer')" class="bg-gray-800 hover:bg-gray-900 transition-colors text-white px-4 py-2 rounded-xl text-sm font-bold w-full">Upload Manual Sign</button>
-                            </div>
-                            
                             <!-- WhatsApp Remote Link Button -->
                             <div class="mt-4 pt-4 border-t border-gray-200">
                                 <button onclick="sendSignatureLink()" class="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded-xl text-sm font-bold w-full flex items-center justify-center gap-2 transition-colors shadow-md">
-                                    <i class="ph ph-whatsapp-logo text-xl"></i> Send Remote Link via WhatsApp
+                                    <i class="ph ph-whatsapp-logo text-xl"></i> Send Remote Verification Link
                                 </button>
-                                <p class="text-[10px] text-gray-500 text-center mt-2 leading-tight">Customer can view & sign the agreement securely from their phone.</p>
+                                <p class="text-[10px] text-gray-500 text-center mt-2 leading-tight">Customer will view the T&C, sign, and securely generate the Document Hash.</p>
                             </div>
                         </div>
                     </div>
@@ -564,8 +559,8 @@
                     <div class="p-8 border border-brand-gold/40 rounded-2xl bg-gradient-to-br from-brand-goldlight/10 to-transparent flex flex-col items-center justify-center space-y-5 shadow-sm relative overflow-hidden">
                         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-brand-gold opacity-10 rounded-full blur-3xl"></div>
                         <div class="w-16 h-16 bg-brand-gold/20 text-brand-golddark rounded-full flex items-center justify-center text-3xl mb-2"><i class="ph ph-file-pdf"></i></div>
-                        <h4 class="font-serif font-bold text-2xl text-brand-dark">Agreement & Sharing</h4>
-                        <p class="text-sm text-gray-600 text-center max-w-md font-medium">Download the watermarked PDF. You can also send a direct message to the customer via WhatsApp.</p>
+                        <h4 class="font-serif font-bold text-2xl text-brand-dark">Legally Binding PDF</h4>
+                        <p class="text-sm text-gray-600 text-center max-w-md font-medium">Download the watermarked PDF equipped with Digital Audit Trail and QR Code.</p>
                         
                         <div class="flex flex-wrap justify-center gap-4 pt-2 relative z-10 w-full">
                             <button onclick="generatePDF('en')" class="btn-primary flex-1 min-w-[160px] py-3 rounded-xl text-sm flex justify-center items-center gap-2 font-bold shadow-lg"><i class="ph ph-download-simple text-lg"></i> English PDF</button>
@@ -603,7 +598,7 @@
                 
                 <div class="flex justify-between text-sm mb-6 bg-gray-50 p-3 rounded border">
                     <p><strong>Agreement No:</strong> <span class="pd-id"></span></p>
-                    <p><strong>Date:</strong> <span class="pd-date"></span></p>
+                    <p><strong>Date Issued:</strong> <span class="pd-date"></span></p>
                 </div>
 
                 <div class="space-y-6">
@@ -619,7 +614,7 @@
                         <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mb-3">2. Event Details</h2>
                         <div class="text-sm grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded border">
                             <p><strong>Event Name:</strong> <span class="pd-ename"></span></p>
-                            <p><strong>Event Date:</strong> <span class="pd-edate font-bold"></span></p>
+                            <p><strong>Date:</strong> <span class="pd-edates font-bold text-brand-red"></span></p>
                             <p class="col-span-2"><strong>Venue/Location:</strong> <span class="pd-evenue"></span></p>
                         </div>
                     </div>
@@ -644,11 +639,28 @@
                             <li>Additional work or items shall be charged separately.</li>
                         </ul>
                     </div>
-
-                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mt-8">Acceptance & Signatures</h2>
-                    <p class="text-xs text-gray-500 mb-6">Both parties confirm that they have read, understood, and voluntarily accepted the terms of this agreement.</p>
                     
-                    <div class="flex justify-between text-sm mt-4">
+                    <div style="page-break-before: always;"></div>
+
+                    <!-- LEGAL AUDIT TRAIL PAGE -->
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-serif font-bold text-brand-dark border-b-2 border-brand-red pb-2 inline-block">Digital Audit Trail & Certificate of Non-Repudiation</h2>
+                    </div>
+
+                    <div class="pd-audit-trail hidden bg-gray-50 border border-gray-300 rounded-lg p-6 text-sm mb-8 relative">
+                        <div class="absolute right-6 top-6 pd-qr-code"></div> <!-- QR Code Area -->
+                        <h3 class="font-bold text-brand-red uppercase mb-4 tracking-wider">Cryptographic Evidence</h3>
+                        <p class="mb-2"><strong>Consent Recorded Time:</strong> <span class="pd-meta-time font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>Verified IP Address:</strong> <span class="pd-meta-ip font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>GPS Location Data:</strong> <span class="pd-meta-loc font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>User Agent/Device:</strong> <span class="pd-user-agent font-mono text-xs bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2 mt-4 text-xs font-bold text-gray-500">SHA-256 Document Hash:</p>
+                        <div class="pd-hash font-mono text-xs bg-white p-2 border border-gray-400 break-all rounded shadow-inner bg-yellow-50"></div>
+                        <p class="text-[10px] text-gray-500 mt-2">This hash mathematically proves the document's contents and signature have not been tampered with since execution under the Information Technology Act.</p>
+                    </div>
+
+                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 uppercase text-brand-red tracking-wider text-sm mt-8">Signatures</h2>
+                    <div class="flex justify-around text-sm mt-8">
                         <div class="text-center w-64">
                             <div class="h-20 flex justify-center items-end pd-sig-dec border-b border-dashed border-gray-400 pb-1"></div>
                             <div class="pt-2 font-bold text-gray-700">Decorator's Signature</div>
@@ -658,21 +670,13 @@
                             <div class="h-20 flex justify-center items-end pd-sig-cust border-b border-dashed border-gray-400 pb-1"></div>
                             <div class="pt-2 font-bold text-gray-700">Customer's Signature</div>
                             <div class="text-xs text-gray-500 mt-1"><span class="pd-cname"></span></div>
-                            
-                            <!-- Digital Metadata Info (Hidden if manual upload) -->
-                            <div class="pd-consent-meta hidden mt-3 p-2 bg-gray-50 border border-gray-200 text-[10px] text-left rounded leading-tight text-gray-500 font-mono">
-                                <b>Digital Consent Record</b><br>
-                                Time: <span class="pd-meta-time"></span><br>
-                                IP: <span class="pd-meta-ip"></span><br>
-                                Loc: <span class="pd-meta-loc"></span>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- BENGALI AGREEMENT TEMPLATE -->
+        <!-- BENGALI AGREEMENT TEMPLATE (Similar Updates) -->
         <div id="template-bn" class="agreement-page">
             <div class="watermark">DE DECORATORS</div>
             <div class="ag-content">
@@ -704,7 +708,7 @@
                         <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mb-3">২. অনুষ্ঠানের বিবরণ</h2>
                         <div class="text-sm grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded border">
                             <p><strong>অনুষ্ঠান:</strong> <span class="pd-ename"></span></p>
-                            <p><strong>তারিখ:</strong> <span class="pd-edate font-bold"></span></p>
+                            <p><strong>তারিখ:</strong> <span class="pd-edates font-bold text-brand-red"></span></p>
                             <p class="col-span-2"><strong>স্থান:</strong> <span class="pd-evenue"></span></p>
                         </div>
                     </div>
@@ -730,10 +734,26 @@
                         </ul>
                     </div>
 
-                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mt-8">উভয় পক্ষের সম্মতি ও স্বাক্ষর</h2>
-                    <p class="text-xs text-gray-500 mb-6">উভয় পক্ষ এই চুক্তিপত্রের শর্তাবলি পড়ে, বুঝে এবং স্বেচ্ছায় সম্মতি প্রদান করছেন।</p>
-                    
-                    <div class="flex justify-between text-sm mt-4">
+                    <div style="page-break-before: always;"></div>
+
+                    <!-- LEGAL AUDIT TRAIL PAGE (Bengali) -->
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-serif font-bold text-brand-dark border-b-2 border-brand-red pb-2 inline-block">Digital Audit Trail & Certificate</h2>
+                    </div>
+
+                    <div class="pd-audit-trail hidden bg-gray-50 border border-gray-300 rounded-lg p-6 text-sm mb-8 relative">
+                        <div class="absolute right-6 top-6 pd-qr-code"></div> <!-- QR Code Area -->
+                        <h3 class="font-bold text-brand-red uppercase mb-4 tracking-wider">ডিজিটাল প্রমাণ (Cryptographic Evidence)</h3>
+                        <p class="mb-2"><strong>সম্মতির সময়:</strong> <span class="pd-meta-time font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>IP অ্যাড্রেস:</strong> <span class="pd-meta-ip font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>লোকেশন:</strong> <span class="pd-meta-loc font-mono bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2"><strong>ডিভাইস:</strong> <span class="pd-user-agent font-mono text-xs bg-white px-1 border rounded"></span></p>
+                        <p class="mb-2 mt-4 text-xs font-bold text-gray-500">SHA-256 Document Hash:</p>
+                        <div class="pd-hash font-mono text-xs bg-white p-2 border border-gray-400 break-all rounded shadow-inner bg-yellow-50"></div>
+                    </div>
+
+                    <h2 class="font-bold border-b-2 border-gray-200 pb-1 text-brand-red text-sm mt-8">উভয় পক্ষের স্বাক্ষর</h2>
+                    <div class="flex justify-around text-sm mt-8">
                         <div class="text-center w-64">
                             <div class="h-20 flex justify-center items-end pd-sig-dec border-b border-dashed border-gray-400 pb-1"></div>
                             <div class="pt-2 font-bold text-gray-700">ডেকোরেটরের স্বাক্ষর</div>
@@ -743,14 +763,6 @@
                             <div class="h-20 flex justify-center items-end pd-sig-cust border-b border-dashed border-gray-400 pb-1"></div>
                             <div class="pt-2 font-bold text-gray-700">গ্রাহকের স্বাক্ষর</div>
                             <div class="text-xs text-gray-500 mt-1"><span class="pd-cname"></span></div>
-
-                            <!-- Digital Metadata Info -->
-                            <div class="pd-consent-meta hidden mt-3 p-2 bg-gray-50 border border-gray-200 text-[10px] text-left rounded leading-tight text-gray-500 font-mono">
-                                <b>Digital Consent Record</b><br>
-                                Time: <span class="pd-meta-time"></span><br>
-                                IP: <span class="pd-meta-ip"></span><br>
-                                Loc: <span class="pd-meta-loc"></span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -761,7 +773,6 @@
 
     <script>
         // --- CONFIG & SUPABASE ---
-        // Ensure you replace these with your actual details
         var SUPABASE_URL = 'https://fbxbsqkrrxbkptylnfye.supabase.co';
         var SUPABASE_KEY = 'sb_publishable_dA5_NADDn40TN3KmU91-vA_L1h1FtQa';
         var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -771,6 +782,7 @@
         var activeWorkId = null;
         var activeWorkData = null;
         var staffListCache = [];
+        var myChart = null; // Analytics Chart instance
         
         // Canvas Signature vars
         var isDrawing = false;
@@ -826,10 +838,6 @@
             });
             const activeNav = document.getElementById('nav-' + view);
             activeNav.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-gradient-to-r from-brand-red/40 to-transparent text-brand-gold border-l-4 border-brand-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]';
-            
-            // Safe assignment for header if it exists
-            const headerTitleEl = document.getElementById('headerTitle');
-            if (headerTitleEl) headerTitleEl.innerText = activeNav.innerText.trim();
 
             if (view === 'dashboard') loadDashboard();
             if (view === 'works') loadWorks();
@@ -850,7 +858,7 @@
                 document.getElementById('logo-preview').innerHTML = `<img src="${base64Str}" class="w-full h-full object-contain">`;
                 showToast('Business Logo saved securely!', 'info');
             };
-            reader.readAsDataURL(file); // Convert image to base64 string
+            reader.readAsDataURL(file);
         }
 
         function loadSettings() {
@@ -860,18 +868,55 @@
             }
         }
 
-        // --- DASHBOARD ---
+        // --- DASHBOARD & CHART.JS ---
         async function loadDashboard() {
             const { count } = await supabase.from('works').select('*', { count: 'exact', head: true });
             document.getElementById('dashWorksCount').innerText = count || 0;
             
-            const { data: pData } = await supabase.from('payments').select('amount');
-            let rev = 0; pData?.forEach(p => rev += Number(p.amount));
+            const { data: pData } = await supabase.from('payments').select('amount, payment_date');
+            let rev = 0;
+            let revByMonth = {};
+            pData?.forEach(p => {
+                rev += Number(p.amount);
+                let m = (p.payment_date || '').substring(0,7);
+                revByMonth[m] = (revByMonth[m] || 0) + Number(p.amount);
+            });
             document.getElementById('dashRevenue').innerText = rev.toLocaleString('en-IN');
             
-            const { data: eData } = await supabase.from('expenses').select('amount');
-            let exp = 0; eData?.forEach(e => exp += Number(e.amount));
+            const { data: eData } = await supabase.from('expenses').select('amount, expense_date');
+            let exp = 0; 
+            let expByMonth = {};
+            eData?.forEach(e => {
+                exp += Number(e.amount);
+                let m = (e.expense_date || '').substring(0,7);
+                expByMonth[m] = (expByMonth[m] || 0) + Number(e.amount);
+            });
             document.getElementById('dashExpenses').innerText = exp.toLocaleString('en-IN');
+
+            // Render Chart
+            const ctx = document.getElementById('financialChart');
+            if(ctx) {
+                if(myChart) myChart.destroy();
+                let labels = [];
+                for(let i=5; i>=0; i--) {
+                    let d = new Date(); d.setMonth(d.getMonth() - i);
+                    labels.push(d.toISOString().substring(0,7));
+                }
+                let revData = labels.map(l => revByMonth[l] || 0);
+                let expData = labels.map(l => expByMonth[l] || 0);
+
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Revenue (₹)', data: revData, backgroundColor: '#10B981', borderRadius: 4 },
+                            { label: 'Expenses (₹)', data: expData, backgroundColor: '#EF4444', borderRadius: 4 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
         }
 
         // --- AGREEMENT / NEW WORK ---
@@ -901,16 +946,16 @@
             const man = document.getElementById('agManualTotal').value;
             if(man && man !== '') grand = parseFloat(man);
             document.getElementById('agGrandTotal').innerText = grand.toLocaleString('en-IN');
-            // Store raw numeric value in a data attribute to retrieve it easily later
             document.getElementById('agGrandTotal').dataset.raw = grand;
         }
 
         async function saveAgreement() {
             const name = document.getElementById('agCustName').value;
             const phone = document.getElementById('agPhone').value;
-            const date = document.getElementById('agDate').value;
+            const startDate = document.getElementById('agStartDate').value;
+            const endDate = document.getElementById('agEndDate').value;
             
-            if(!name || !phone || !date) return showToast('Customer Name, Phone, and Event Date are required.', 'error');
+            if(!name || !phone || !startDate) return showToast('Customer Name, Phone, and Start Date are required.', 'error');
             
             const btn = document.getElementById('btnSaveAg');
             btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i> <span>Saving to Database...</span>';
@@ -922,20 +967,19 @@
                     phone, 
                     address: document.getElementById('agAddress').value 
                 }]).select().single();
-                
-                if (cErr) throw new Error("Customer Insert Error: " + cErr.message + " (Check RLS Policies)");
+                if (cErr) throw new Error("Customer Insert Error: " + cErr.message);
 
                 let grand = parseFloat(document.getElementById('agGrandTotal').dataset.raw || 0);
                 
-                // 2. Save Work
+                // 2. Save Work (Including End Date)
                 const { data: w, error: wErr } = await supabase.from('works').insert([{
                     customer_id: c.id, 
-                    event_date: date, 
+                    event_date: startDate,
+                    event_end_date: endDate, 
                     venue: document.getElementById('agVenue').value, 
                     total_amount: grand, 
                     status: 'Pending'
                 }]).select().single();
-                
                 if (wErr) throw new Error("Work Insert Error: " + wErr.message);
 
                 // 3. Save Items
@@ -951,7 +995,7 @@
                     if (iErr) throw new Error("Items Insert Error: " + iErr.message);
                 }
                 
-                showToast('Agreement saved and created successfully!');
+                showToast('Agreement saved successfully!');
                 
                 // Reset form
                 document.getElementById('agCustName').value = '';
@@ -959,16 +1003,12 @@
                 document.getElementById('agAddress').value = '';
                 document.getElementById('agEventName').value = '';
                 document.getElementById('agVenue').value = '';
-                document.getElementById('agOtherCharge').value = '0';
-                document.getElementById('agDiscount').value = '0';
-                document.getElementById('agManualTotal').value = '';
+                document.getElementById('agStartDate').value = '';
+                document.getElementById('agEndDate').value = '';
                 document.getElementById('agItemsBody').innerHTML = '';
-                addAgRow();
-                calcAgTotal();
+                addAgRow(); calcAgTotal();
 
-                // Go to Works manager
                 changeView('works');
-                
             } catch(e) { 
                 console.error(e);
                 showToast(e.message, 'error'); 
@@ -976,7 +1016,16 @@
             btn.innerHTML = '<span>Save Agreement</span> <i class="ph ph-check-circle text-xl"></i>';
         }
 
-        // --- WORKS MANAGER ---
+        // --- WORKS MANAGER & SEARCH FILTER ---
+        function filterWorks() {
+            const input = document.getElementById('searchWorksInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#worksTbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(input) ? '' : 'none';
+            });
+        }
+
         async function loadWorks() {
             const { data, error } = await supabase.from('works').select(`*, customers(name, phone)`).order('created_at', { ascending: false });
             if (error) { showToast("Failed to load works: " + error.message, 'error'); return; }
@@ -985,6 +1034,9 @@
             tb.innerHTML = '';
             data?.forEach(w => {
                 let statusColor = w.status === 'Completed' ? 'bg-green-100 text-green-800' : (w.status === 'Running' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800');
+                let dateStr = w.event_date || 'N/A';
+                if(w.event_end_date) dateStr += ` to ${w.event_end_date}`;
+                
                 tb.innerHTML += `
                     <tr class="hover:bg-brand-red/5 transition-colors group cursor-pointer" onclick="openWorkModal(${w.id})">
                         <td class="p-4 border-b border-gray-100">
@@ -993,7 +1045,7 @@
                             <p class="text-xs font-mono bg-gray-100 text-gray-600 inline-block px-1.5 py-0.5 mt-1.5 rounded">#WK-${w.id}</p>
                         </td>
                         <td class="p-4 border-b border-gray-100">
-                            <p class="text-sm font-medium"><i class="ph ph-calendar-blank text-brand-red"></i> ${w.event_date || 'N/A'}</p>
+                            <p class="text-sm font-medium text-brand-red"><i class="ph ph-calendar-blank"></i> ${dateStr}</p>
                             <p class="text-xs text-gray-500 mt-1 truncate max-w-[150px]"><i class="ph ph-map-pin"></i> ${w.venue || '-'}</p>
                         </td>
                         <td class="p-4 border-b border-gray-100">
@@ -1027,28 +1079,19 @@
             document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('attDate').value = new Date().toISOString().split('T')[0];
             
-            // Initialize canvas
-            setTimeout(initSignaturePad, 200);
-
-            // Wait for modal animation, then load data
-            setTimeout(async () => {
-                await loadWorkModalData();
-            }, 100);
+            setTimeout(async () => { await loadWorkModalData(); }, 100);
         }
         
         function closeWorkModal() { 
             const modal = document.getElementById('workModal');
-            modal.classList.add('hidden'); 
-            modal.classList.remove('flex'); 
+            modal.classList.add('hidden'); modal.classList.remove('flex'); 
         }
 
         async function loadWorkModalData() {
             try {
                 const { data: work, error } = await supabase.from('works')
                     .select(`*, customers(*), invoice_items(*), payments(*), labour_attendance(*, staff(name))`)
-                    .eq('id', activeWorkId)
-                    .single();
-                
+                    .eq('id', activeWorkId).single();
                 if (error) throw error;
                 activeWorkData = work;
                 
@@ -1091,7 +1134,7 @@
                         </tr>`;
                     });
                 } else {
-                     mtb.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No items attached to this work.</td></tr>';
+                     mtb.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No items attached.</td></tr>';
                 }
 
                 // Staff Tab
@@ -1102,7 +1145,7 @@
                         stb.innerHTML += `<tr><td class="p-4 border-b border-gray-100 font-bold text-brand-dark"><i class="ph ph-user text-gray-400 mr-1"></i> ${a.staff?.name}</td><td class="p-4 border-b border-gray-100 font-medium text-gray-600">${a.work_date}</td><td class="p-4 border-b border-gray-100 text-right font-black text-green-700">₹${Number(a.wage).toLocaleString('en-IN')}</td></tr>`;
                     });
                 } else {
-                    stb.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No staff attendance logged yet.</td></tr>';
+                    stb.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No staff logs.</td></tr>';
                 }
 
                 // Signatures Tab
@@ -1117,340 +1160,77 @@
                 if(work.customer_sign) {
                     document.getElementById('sigCustPreview').innerHTML = `<img src="${work.customer_sign}" class="signature-img">`;
                     document.getElementById('sigCustPreview').classList.remove('border-dashed');
-                    // Hide drawing pad if already signed
-                    if (work.consent_time) toggleSigMode('upload'); 
                 } else {
                     document.getElementById('sigCustPreview').innerHTML = 'No Signature Yet';
                     document.getElementById('sigCustPreview').classList.add('border-dashed');
-                    toggleSigMode('draw');
-                    clearSignature();
-                    document.getElementById('consentCheck').checked = false;
                 }
 
-            } catch(e) {
-                console.error("Modal load error:", e);
-                showToast("Failed to load work details.", "error");
-            }
+            } catch(e) { showToast("Failed to load work details.", "error"); }
         }
 
         async function updateWorkStatus() {
             const s = document.getElementById('wmStatus').value;
             const { error } = await supabase.from('works').update({ status: s }).eq('id', activeWorkId);
-            if(error) showToast(error.message, 'error');
-            else { showToast('Status updated successfully'); loadWorks(); }
+            if(error) showToast(error.message, 'error'); else { showToast('Status updated'); loadWorks(); }
         }
         
         async function updateReturn(itemId) {
             const val = document.getElementById(`ret_${itemId}`).value;
             const { error } = await supabase.from('invoice_items').update({ returned_qty: val }).eq('id', itemId);
-            if(error) showToast(error.message, 'error');
-            else showToast('Item return logged successfully');
+            if(error) showToast(error.message, 'error'); else showToast('Return logged');
         }
 
         async function addPayment() {
             const amt = document.getElementById('payAmt').value;
             const method = document.getElementById('payMethod').value;
             const date = document.getElementById('payDate').value;
-            if(!amt) return showToast('Please enter an amount', 'error');
-            
+            if(!amt) return showToast('Enter amount', 'error');
             const { error } = await supabase.from('payments').insert([{ work_id: activeWorkId, amount: amt, method, payment_date: date }]);
-            if(error) { showToast(error.message, 'error'); }
-            else { 
-                document.getElementById('payAmt').value = ''; 
-                showToast('Payment Added successfully'); 
-                loadWorkModalData(); 
-            }
+            if(error) { showToast(error.message, 'error'); } else { document.getElementById('payAmt').value = ''; showToast('Added successfully'); loadWorkModalData(); }
         }
 
         async function addAttendance() {
             const sid = document.getElementById('attStaff').value;
             const d = document.getElementById('attDate').value;
             const w = document.getElementById('attWage').value;
-            if(!sid || !w) return showToast('Staff and Wage are required', 'error');
-            
+            if(!sid || !w) return showToast('Staff and Wage required', 'error');
             const { error } = await supabase.from('labour_attendance').insert([{ work_id: activeWorkId, staff_id: sid, work_date: d, wage: w }]);
-            if(error) { showToast(error.message, 'error'); }
-            else { showToast('Staff attendance logged successfully'); loadWorkModalData(); }
+            if(error) { showToast(error.message, 'error'); } else { showToast('Logged'); loadWorkModalData(); }
         }
 
-        // --- SIGNATURES ---
         async function uploadSignature(type) {
-            const inputId = type === 'decorator' ? 'fileDecSig' : 'fileCustSig';
-            const fileInput = document.getElementById(inputId);
+            const fileInput = document.getElementById(type === 'decorator' ? 'fileDecSig' : 'fileCustSig');
             const file = fileInput.files[0];
-            
             if(!file) return showToast('Select an image file first', 'error');
             
             const ext = file.name.split('.').pop();
             const filePath = `sig_${type}_${activeWorkId}_${Date.now()}.${ext}`;
-            
-            showToast('Uploading signature... please wait.');
+            showToast('Uploading signature...');
             try {
-                // Upload to Supabase Storage Bucket named "agreements"
                 const { error: uploadError } = await supabase.storage.from('agreements').upload(filePath, file);
-                if(uploadError) throw new Error("Upload Error: " + uploadError.message);
-                
-                // Get Public URL
+                if(uploadError) throw new Error(uploadError.message);
                 const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
                 
-                // Update Works table
                 const updateObj = {};
                 if(type === 'decorator') updateObj.decorator_sign = data.publicUrl;
                 if(type === 'customer') updateObj.customer_sign = data.publicUrl;
                 
                 const { error: updateError } = await supabase.from('works').update(updateObj).eq('id', activeWorkId);
-                if(updateError) throw new Error("DB Update Error: " + updateError.message);
+                if(updateError) throw new Error(updateError.message);
 
-                showToast('Signature Uploaded & Saved!'); 
-                fileInput.value = ''; // clear input
-                loadWorkModalData();
-            } catch(e) { 
-                console.error(e);
-                showToast(e.message, 'error'); 
-            }
+                showToast('Signature Saved!'); fileInput.value = ''; loadWorkModalData();
+            } catch(e) { showToast(e.message, 'error'); }
         }
 
-        // --- DIGITAL SIGNATURE & METADATA ---
-        function toggleSigMode(mode) {
-            if(mode === 'draw') {
-                document.getElementById('modeSigDraw').classList.remove('hidden');
-                document.getElementById('modeSigUpload').classList.add('hidden');
-                document.getElementById('btnSigDraw').className = "flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red";
-                document.getElementById('btnSigUpload').className = "flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800";
-                setTimeout(initSignaturePad, 50); // Re-init geometry
-            } else {
-                document.getElementById('modeSigDraw').classList.add('hidden');
-                document.getElementById('modeSigUpload').classList.remove('hidden');
-                document.getElementById('btnSigUpload').className = "flex-1 py-1.5 text-xs font-bold rounded bg-white shadow text-brand-red";
-                document.getElementById('btnSigDraw').className = "flex-1 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800";
-            }
-        }
-
-        function initSignaturePad() {
-            sigCanvas = document.getElementById('sigCanvas');
-            if(!sigCanvas) return;
-            sigCtx = sigCanvas.getContext('2d');
-            
-            // Adjust canvas resolution to visual size
-            const rect = sigCanvas.getBoundingClientRect();
-            sigCanvas.width = rect.width;
-            sigCanvas.height = rect.height;
-
-            // Remove existing listeners to prevent duplicates
-            sigCanvas.replaceWith(sigCanvas.cloneNode(true));
-            sigCanvas = document.getElementById('sigCanvas');
-            sigCtx = sigCanvas.getContext('2d');
-
-            const startDraw = (e) => {
-                isDrawing = true;
-                draw(e);
-            };
-            const stopDraw = () => { isDrawing = false; sigCtx.beginPath(); };
-            
-            const draw = (e) => {
-                if(!isDrawing) return;
-                e.preventDefault();
-                const rect = sigCanvas.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                
-                sigCtx.lineWidth = 2.5;
-                sigCtx.lineCap = 'round';
-                sigCtx.strokeStyle = '#800000'; // Brand red ink
-                
-                sigCtx.lineTo(x, y);
-                sigCtx.stroke();
-                sigCtx.beginPath();
-                sigCtx.moveTo(x, y);
-            };
-
-            sigCanvas.addEventListener('mousedown', startDraw);
-            sigCanvas.addEventListener('mousemove', draw);
-            sigCanvas.addEventListener('mouseup', stopDraw);
-            sigCanvas.addEventListener('mouseout', stopDraw);
-            
-            sigCanvas.addEventListener('touchstart', startDraw, {passive: false});
-            sigCanvas.addEventListener('touchmove', draw, {passive: false});
-            sigCanvas.addEventListener('touchend', stopDraw);
-        }
-
-        function clearSignature() {
-            if(sigCtx && sigCanvas) {
-                sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-            }
-        }
-
-        async function captureConsentMetadata() {
-            let ip = "Unknown IP", locStr = "Location Denied";
-            try {
-                const res = await fetch('https://api.ipify.org?format=json');
-                ip = (await res.json()).ip;
-            } catch(e) {}
-
-            const getLoc = () => new Promise((resolve) => {
-                if (!navigator.geolocation) resolve(locStr);
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve(`Lat:${pos.coords.latitude.toFixed(4)},Lng:${pos.coords.longitude.toFixed(4)}`),
-                    (err) => resolve(locStr),
-                    { timeout: 4000 }
-                );
-            });
-            locStr = await getLoc();
-            return { ip, loc: locStr, time: new Date().toLocaleString('en-IN') };
-        }
-
-        async function saveDigitalCustomerSignature() {
-            if(!document.getElementById('consentCheck').checked) {
-                return showToast('You must agree to the T&C to proceed.', 'error');
-            }
-            
-            // Check if canvas is empty
-            const blank = document.createElement('canvas');
-            blank.width = sigCanvas.width; blank.height = sigCanvas.height;
-            if(sigCanvas.toDataURL() === blank.toDataURL()) {
-                return showToast('Please provide a signature on the pad.', 'error');
-            }
-
-            const btn = event.currentTarget;
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Saving & Verifying...';
-            btn.disabled = true;
-
-            showToast('Capturing Location & IP for Verification...', 'info');
-            const meta = await captureConsentMetadata();
-
-            sigCanvas.toBlob(async (blob) => {
-                const filePath = `sig_digital_${activeWorkId}_${Date.now()}.png`;
-                try {
-                    const { error: uploadErr } = await supabase.storage.from('agreements').upload(filePath, blob);
-                    if(uploadErr) throw uploadErr;
-
-                    const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
-                    
-                    const { error: updateErr } = await supabase.from('works').update({
-                        customer_sign: data.publicUrl,
-                        customer_ip: meta.ip,
-                        customer_location: meta.loc,
-                        consent_time: meta.time
-                    }).eq('id', activeWorkId);
-
-                    if(updateErr) throw updateErr;
-
-                    showToast('Digital Signature Saved Securely!');
-                    loadWorkModalData();
-                } catch (err) {
-                    showToast(err.message, 'error');
-                }
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
-            });
-        }
-
-        function shareToWhatsApp() {
-            if(!activeWorkData || !activeWorkData.customers) return;
-            const phone = activeWorkData.customers.phone;
-            const msg = `Hello ${activeWorkData.customers.name},\n\nHere is your Decoration Work Agreement (WK-${activeWorkData.id}) from *DE DECORATORS*.\n\nTotal Contract Amount: ₹${activeWorkData.total_amount}\n\nPlease download your attached PDF receipt for full details and terms.\n\nThank you!`;
-            
-            const encodedMsg = encodeURIComponent(msg);
-            let waUrl = `https://wa.me/91${phone.replace(/\D/g, '')}?text=${encodedMsg}`;
-            
-            if(!phone || phone.length < 10) {
-                 waUrl = `https://wa.me/?text=${encodedMsg}`; // Open picker if no valid phone
-            }
-            window.open(waUrl, '_blank');
-            showToast('Opening WhatsApp! Please attach the downloaded PDF manually.', 'info');
-        }
-
-        // --- PDF GENERATION ---
-        async function generatePDF(langCode) {
-            if(!activeWorkData) return;
-            const w = activeWorkData; 
-            const c = w.customers;
-            const t = document.getElementById(`template-${langCode}`);
-            
-            // --- INJECT CUSTOM LOGO ---
-            const savedLogo = localStorage.getItem('dedecorators_logo');
-            const imgEl = t.querySelector(langCode === 'en' ? '#pdfLogoImgEn' : '#pdfLogoImgBn');
-            const textEl = t.querySelector(langCode === 'en' ? '#pdfLogoTextEn' : '#pdfLogoTextBn');
-            
-            if (savedLogo) {
-                imgEl.src = savedLogo;
-                imgEl.classList.remove('hidden');
-                textEl.classList.add('hidden');
-            } else {
-                imgEl.classList.add('hidden');
-                textEl.classList.remove('hidden');
-            }
-            
-            // Populate Text
-            t.querySelector('.pd-id').innerText = `WK-${w.id}`;
-            t.querySelector('.pd-date').innerText = new Date().toLocaleDateString('en-IN');
-            t.querySelector('.pd-cname').innerText = c.name;
-            t.querySelector('.pd-cphone').innerText = c.phone || 'N/A';
-            t.querySelector('.pd-ename').innerText = 'Decoration Work';
-            t.querySelector('.pd-edate').innerText = w.event_date;
-            t.querySelector('.pd-evenue').innerText = w.venue || 'N/A';
-            
-            // Populate Items Table
-            const tbody = t.querySelector('.pd-items-tbody'); 
-            tbody.innerHTML = '';
-            if(w.invoice_items && w.invoice_items.length > 0) {
-                w.invoice_items.forEach(i => {
-                    tbody.innerHTML += `<tr><td class="border p-2 font-medium">${i.item_name}</td><td class="border p-2 text-center">${i.quantity}</td><td class="border p-2 text-right">${(i.rate || 0).toLocaleString('en-IN')}</td><td class="border p-2 text-right font-bold">${((i.quantity * i.rate) || 0).toLocaleString('en-IN')}</td></tr>`;
-                });
-            } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="border p-4 text-center italic text-gray-500">Lump Sum Contract - No detailed items</td></tr>`;
-            }
-            t.querySelector('.pd-grand').innerText = (w.total_amount || 0).toLocaleString('en-IN');
-
-            // Inject Signatures dynamically
-            t.querySelector('.pd-sig-dec').innerHTML = w.decorator_sign ? `<img src="${w.decorator_sign}" class="signature-img">` : '';
-            t.querySelector('.pd-sig-cust').innerHTML = w.customer_sign ? `<img src="${w.customer_sign}" class="signature-img">` : '';
-            t.querySelectorAll('.pd-cname').forEach(el => el.innerText = c.name);
-
-            // Inject Metadata if signed digitally
-            const metaDivs = t.querySelectorAll('.pd-consent-meta');
-            if(w.consent_time) {
-                metaDivs.forEach(el => {
-                    el.classList.remove('hidden');
-                    el.querySelector('.pd-meta-time').innerText = w.consent_time;
-                    el.querySelector('.pd-meta-ip').innerText = w.customer_ip || 'N/A';
-                    el.querySelector('.pd-meta-loc').innerText = w.customer_location || 'N/A';
-                });
-            } else {
-                metaDivs.forEach(el => el.classList.add('hidden'));
-            }
-
-            // Render Logic
-            const renderContainer = document.getElementById('pdf-render-container');
-            renderContainer.style.left = '0';
-            renderContainer.style.top = '0';
-            renderContainer.style.zIndex = '-10'; // visible for render, but behind everything
-
-            showToast('Generating HD PDF... Please wait.', 'info');
-            try {
-                const canvas = await html2canvas(t, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                const imgData = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
-                
-                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                const pWidth = pdf.internal.pageSize.getWidth();
-                const pHeight = (canvas.height * pWidth) / canvas.width;
-                
-                pdf.addImage(imgData, 'JPEG', 0, 0, pWidth, pHeight);
-                pdf.save(`DE_Decorators_Agreement_WK${w.id}_${c.name.replace(/\s+/g, '_')}.pdf`);
-                
-                showToast('PDF Downloaded Successfully!');
-            } catch(e) { 
-                console.error("PDF Gen Error:", e);
-                showToast('PDF Generation failed. See console.', 'error'); 
-            }
-            
-            // Hide container again
-            renderContainer.style.left = '-9999px';
+        // --- CRYPTOGRAPHIC HASHING ---
+        async function generateSHA256Hash(dataStr) {
+            const msgBuffer = new TextEncoder().encode(dataStr);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         // --- CUSTOMER REMOTE PORTAL LOGIC ---
-        
         let cpCanvas, cpCtx, cpIsDrawing = false;
 
         function sendSignatureLink() {
@@ -1458,29 +1238,22 @@
             const phone = activeWorkData.customers.phone;
             const link = `${window.location.origin}${window.location.pathname}?sign_work=${activeWorkId}`;
             const msg = `Hello ${activeWorkData.customers.name},\n\nPlease review and digitally sign your Decoration Work Agreement for *DE DECORATORS* using this secure link:\n\n${link}\n\nThank you!`;
-            
             const encodedMsg = encodeURIComponent(msg);
             let waUrl = `https://wa.me/91${phone.replace(/\D/g, '')}?text=${encodedMsg}`;
-            
             if(!phone || phone.length < 10) waUrl = `https://wa.me/?text=${encodedMsg}`;
             window.open(waUrl, '_blank');
         }
 
         async function initCustomerPortal(workId) {
-            // Hide everything else
             document.getElementById('auth-screen').classList.add('hidden', 'opacity-0');
             document.getElementById('app-screen').classList.add('hidden', 'opacity-0');
             const cp = document.getElementById('customer-portal-screen');
-            cp.classList.remove('hidden');
-            cp.classList.add('flex');
-
+            cp.classList.remove('hidden'); cp.classList.add('flex');
             const cpContent = document.getElementById('cp-content');
 
             try {
-                // Fetch public work details
                 const { data: work, error } = await supabase.from('works')
                     .select('*, customers(name, phone), invoice_items(*)').eq('id', workId).single();
-                
                 if(error || !work) throw new Error("Agreement not found or invalid link.");
 
                 if(work.customer_sign) {
@@ -1488,76 +1261,105 @@
                         <div class="text-center py-10 flex flex-col items-center h-full justify-center">
                             <i class="ph ph-check-circle text-6xl text-green-500 mb-4 drop-shadow-md"></i>
                             <h2 class="text-2xl font-black text-gray-800 mb-2">Already Signed</h2>
-                            <p class="text-gray-500 font-medium text-center">This agreement has already been digitally verified and signed. Thank you for choosing DE DECORATORS!</p>
+                            <p class="text-gray-500 font-medium text-center">This agreement has already been digitally verified and signed.</p>
                         </div>`;
                      return;
                 }
 
-                // Render Agreement UI for Customer
+                let dateStr = work.event_date || 'N/A';
+                if(work.event_end_date) dateStr += ` to ${work.event_end_date}`;
+
                 cpContent.innerHTML = `
-                    <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm text-sm">
-                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-200">
-                            <i class="ph ph-file-text text-2xl text-brand-red"></i>
-                            <h3 class="font-bold text-gray-800 text-lg">Agreement Summary</h3>
-                        </div>
-                        <p class="mb-1"><strong>Customer:</strong> ${work.customers?.name}</p>
-                        <p class="mb-1"><strong>Event Date:</strong> <span class="text-brand-red font-bold">${work.event_date || 'N/A'}</span></p>
-                        <p class="mb-1"><strong>Venue:</strong> ${work.venue || 'N/A'}</p>
-                        <div class="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
-                            <span class="font-bold text-gray-600">Total Contract Value:</span>
-                            <span class="font-black text-brand-dark text-xl">₹${(work.total_amount || 0).toLocaleString('en-IN')}</span>
+                    <!-- 1. FAKE OTP VERIFICATION STEP (UI Only for demonstration) -->
+                    <div id="otpStep" class="bg-white p-5 rounded-2xl border shadow text-center">
+                        <i class="ph ph-lock-key text-4xl text-brand-red mb-2"></i>
+                        <h3 class="font-bold text-gray-800 text-lg mb-2">Identity Verification</h3>
+                        <p class="text-xs text-gray-500 mb-4">For legal compliance, click to receive an OTP.</p>
+                        <button onclick="simulateOTP()" class="bg-brand-red text-white font-bold py-2 px-6 rounded-xl w-full">Send OTP</button>
+                        <div id="otpInputArea" class="hidden mt-4">
+                            <input type="text" id="otpCode" placeholder="Enter 1234" class="input-pro text-center tracking-widest text-lg font-mono">
+                            <button onclick="verifyOTP()" class="bg-green-600 text-white font-bold py-2 px-6 rounded-xl w-full mt-2">Verify</button>
                         </div>
                     </div>
 
-                    <div class="text-xs text-gray-600 border p-5 rounded-2xl bg-white shadow-inner max-h-48 overflow-y-auto">
-                        <h3 class="font-bold text-sm mb-3 text-brand-red border-b pb-2">Terms & Conditions</h3>
-                        <ul class="list-disc pl-4 space-y-2 font-medium">
-                            <li>The customer shall pay the agreed advance to confirm the booking.</li>
-                            <li>The outstanding balance shall be paid according to the agreed schedule.</li>
-                            <li>If any rented item is lost or damaged, applicable compensation will be determined.</li>
-                            <li>Additional work or items shall be charged separately.</li>
-                            <li>Both parties agree to the final terms documented in this agreement.</li>
-                        </ul>
-                    </div>
-
-                    <div class="space-y-4 pt-2">
-                        <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl text-xs text-blue-900 shadow-sm">
-                            <label class="flex items-start gap-3 cursor-pointer font-medium">
-                                <input type="checkbox" id="cpConsent" class="mt-0.5 rounded text-brand-red focus:ring-brand-red w-5 h-5">
-                                <span>I have read and accept the Agreement and Terms. I voluntarily consent to record my IP and Location for strict digital verification.</span>
-                            </label>
+                    <!-- 2. AGREEMENT DETAILS (Hidden initially) -->
+                    <div id="agreementStep" class="hidden space-y-4">
+                        <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm text-sm">
+                            <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-200">
+                                <i class="ph ph-file-text text-2xl text-brand-red"></i>
+                                <h3 class="font-bold text-gray-800 text-lg">Agreement Summary</h3>
+                            </div>
+                            <p class="mb-1"><strong>Customer:</strong> ${work.customers?.name}</p>
+                            <p class="mb-1"><strong>Dates:</strong> <span class="text-brand-red font-bold">${dateStr}</span></p>
+                            <p class="mb-1"><strong>Venue:</strong> ${work.venue || 'N/A'}</p>
+                            <div class="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
+                                <span class="font-bold text-gray-600">Total Contract Value:</span>
+                                <span class="font-black text-brand-dark text-xl">₹${(work.total_amount || 0).toLocaleString('en-IN')}</span>
+                            </div>
                         </div>
-                        
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 uppercase mb-2 tracking-wider"><i class="ph ph-signature"></i> Draw your signature below</label>
-                            <div class="border-2 border-dashed border-gray-300 rounded-2xl overflow-hidden bg-white touch-none relative">
-                                <canvas id="cpCanvas" class="w-full h-48 bg-transparent cursor-crosshair" style="touch-action: none;"></canvas>
-                                <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5" id="cpCanvasHint">
-                                    <span class="font-serif text-3xl font-black text-brand-dark">Sign Here</span>
+
+                        <!-- SCROLL TO ACCEPT T&C -->
+                        <div class="text-xs text-gray-600 border p-5 rounded-2xl bg-white shadow-inner max-h-48 overflow-y-auto" onscroll="checkTcScroll(this)">
+                            <h3 class="font-bold text-sm mb-3 text-brand-red border-b pb-2">Terms & Conditions (Scroll to bottom to accept)</h3>
+                            <ul class="list-disc pl-4 space-y-2 font-medium">
+                                <li>The customer shall pay the agreed advance to confirm the booking.</li>
+                                <li>The outstanding balance shall be paid according to the agreed schedule.</li>
+                                <li>If any rented item is lost or damaged, applicable compensation will be determined.</li>
+                                <li>Additional work or items shall be charged separately.</li>
+                                <li>Both parties agree to the final terms documented in this agreement.</li>
+                                <li class="text-brand-red">This document will be securely hashed upon signature.</li>
+                                <li><br><br><br>End of Document.</li>
+                            </ul>
+                        </div>
+
+                        <div class="space-y-4 pt-2">
+                            <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl text-xs text-blue-900 shadow-sm">
+                                <label class="flex items-start gap-3 cursor-pointer font-medium">
+                                    <input type="checkbox" id="cpConsent" disabled class="mt-0.5 rounded text-brand-red w-5 h-5 opacity-50">
+                                    <span>I have read and accept the Agreement and Terms. I voluntarily consent to record my IP and Location for strict digital verification.</span>
+                                </label>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-2 tracking-wider"><i class="ph ph-signature"></i> Draw your signature below</label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-2xl overflow-hidden bg-white touch-none relative">
+                                    <canvas id="cpCanvas" class="w-full h-48 bg-transparent cursor-crosshair"></canvas>
+                                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5" id="cpCanvasHint"><span class="font-serif text-3xl font-black text-brand-dark">Sign Here</span></div>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="text-[10px] text-gray-400">Please sign clearly inside the box</span>
+                                    <button onclick="clearCpSignature()" class="text-xs font-bold text-gray-500 hover:text-brand-red bg-gray-100 px-3 py-1.5 rounded-lg"><i class="ph ph-eraser"></i> Clear</button>
                                 </div>
                             </div>
-                            <div class="flex justify-between items-center mt-2">
-                                <span class="text-[10px] text-gray-400">Please sign clearly inside the box</span>
-                                <button onclick="clearCpSignature()" class="text-xs font-bold text-gray-500 hover:text-brand-red bg-gray-100 px-3 py-1.5 rounded-lg"><i class="ph ph-eraser"></i> Clear</button>
-                            </div>
-                        </div>
 
-                        <button onclick="submitRemoteSignature(${workId})" id="btnCpSubmit" class="bg-gradient-to-r from-brand-red to-brand-reddark hover:shadow-lg transition-all text-white w-full py-4 rounded-xl font-bold text-lg shadow-md flex items-center justify-center gap-2 mt-4">
-                            <i class="ph ph-fingerprint text-2xl"></i> Agree & Submit Signature
-                        </button>
+                            <button onclick="submitRemoteSignature(${workId})" id="btnCpSubmit" class="bg-gradient-to-r from-brand-red to-brand-reddark hover:shadow-lg transition-all text-white w-full py-4 rounded-xl font-bold text-lg shadow-md flex items-center justify-center gap-2 mt-4">
+                                <i class="ph ph-fingerprint text-2xl"></i> Securely Hash & Sign
+                            </button>
+                        </div>
                     </div>
                 `;
-
-                // Initialize canvas after a tiny delay to ensure DOM is ready
-                setTimeout(initCpSignaturePad, 150);
-
             } catch (e) {
-                cpContent.innerHTML = `
-                    <div class="text-center py-10 text-red-500 flex flex-col items-center h-full justify-center">
-                        <i class="ph ph-warning-circle text-5xl mb-4"></i>
-                        <h3 class="text-xl font-bold mb-2">Error Loading Agreement</h3>
-                        <p class="text-sm font-medium text-gray-600">${e.message}</p>
-                    </div>`;
+                cpContent.innerHTML = `<div class="text-center py-10 text-red-500"><i class="ph ph-warning-circle text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">Error Loading</h3><p>${e.message}</p></div>`;
+            }
+        }
+
+        // Mock OTP Flow
+        function simulateOTP() { document.getElementById('otpInputArea').classList.remove('hidden'); }
+        function verifyOTP() {
+            if(document.getElementById('otpCode').value === '1234') {
+                document.getElementById('otpStep').classList.add('hidden');
+                document.getElementById('agreementStep').classList.remove('hidden');
+                setTimeout(initCpSignaturePad, 150);
+            } else {
+                alert("Incorrect OTP. (Use 1234 for demo)");
+            }
+        }
+
+        // Scroll Lock
+        function checkTcScroll(el) {
+            if(el.scrollTop + el.clientHeight >= el.scrollHeight - 10) {
+                document.getElementById('cpConsent').disabled = false;
+                document.getElementById('cpConsent').classList.remove('opacity-50');
             }
         }
 
@@ -1565,224 +1367,212 @@
             cpCanvas = document.getElementById('cpCanvas');
             if(!cpCanvas) return;
             cpCtx = cpCanvas.getContext('2d');
-            
             const rect = cpCanvas.getBoundingClientRect();
-            cpCanvas.width = rect.width;
-            cpCanvas.height = rect.height;
+            cpCanvas.width = rect.width; cpCanvas.height = rect.height;
 
-            const startDraw = (e) => {
-                cpIsDrawing = true;
-                document.getElementById('cpCanvasHint').style.display = 'none'; // hide hint
-                draw(e);
-            };
-            const stopDraw = () => { cpIsDrawing = false; cpCtx.beginPath(); };
-            
             const draw = (e) => {
                 if(!cpIsDrawing) return;
                 e.preventDefault();
-                const rect = cpCanvas.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                
-                cpCtx.lineWidth = 3;
-                cpCtx.lineCap = 'round';
-                cpCtx.strokeStyle = '#111827'; // Dark ink for customer
-                
-                cpCtx.lineTo(x, y);
-                cpCtx.stroke();
-                cpCtx.beginPath();
-                cpCtx.moveTo(x, y);
+                const r = cpCanvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+                cpCtx.lineWidth = 3; cpCtx.lineCap = 'round'; cpCtx.strokeStyle = '#111827';
+                cpCtx.lineTo(x, y); cpCtx.stroke(); cpCtx.beginPath(); cpCtx.moveTo(x, y);
             };
-
-            cpCanvas.addEventListener('mousedown', startDraw);
+            cpCanvas.addEventListener('mousedown', (e)=>{cpIsDrawing=true;document.getElementById('cpCanvasHint').style.display='none';draw(e);});
             cpCanvas.addEventListener('mousemove', draw);
-            cpCanvas.addEventListener('mouseup', stopDraw);
-            cpCanvas.addEventListener('mouseout', stopDraw);
-            
-            cpCanvas.addEventListener('touchstart', startDraw, {passive: false});
+            cpCanvas.addEventListener('mouseup', ()=>{cpIsDrawing=false;cpCtx.beginPath();});
+            cpCanvas.addEventListener('mouseout', ()=>{cpIsDrawing=false;cpCtx.beginPath();});
+            cpCanvas.addEventListener('touchstart', (e)=>{cpIsDrawing=true;document.getElementById('cpCanvasHint').style.display='none';draw(e);}, {passive: false});
             cpCanvas.addEventListener('touchmove', draw, {passive: false});
-            cpCanvas.addEventListener('touchend', stopDraw);
+            cpCanvas.addEventListener('touchend', ()=>{cpIsDrawing=false;cpCtx.beginPath();});
         }
-
-        function clearCpSignature() {
-            if(cpCtx && cpCanvas) {
-                cpCtx.clearRect(0, 0, cpCanvas.width, cpCanvas.height);
-                document.getElementById('cpCanvasHint').style.display = 'flex';
-            }
-        }
+        function clearCpSignature() { if(cpCtx) { cpCtx.clearRect(0,0,cpCanvas.width,cpCanvas.height); document.getElementById('cpCanvasHint').style.display='flex'; } }
 
         async function submitRemoteSignature(workId) {
-            if(!document.getElementById('cpConsent').checked) {
-                alert('You must check the consent box to proceed.');
-                return;
-            }
+            const consent = document.getElementById('cpConsent');
+            if(consent.disabled || !consent.checked) { return alert('You must scroll to the bottom of the T&C and check the consent box.'); }
             
-            // Check if empty
-            const blank = document.createElement('canvas');
-            blank.width = cpCanvas.width; blank.height = cpCanvas.height;
-            if(cpCanvas.toDataURL() === blank.toDataURL()) {
-                alert('Please provide your signature on the pad.');
-                return;
-            }
+            const blank = document.createElement('canvas'); blank.width = cpCanvas.width; blank.height = cpCanvas.height;
+            if(cpCanvas.toDataURL() === blank.toDataURL()) return alert('Please provide your signature.');
 
             const btn = document.getElementById('btnCpSubmit');
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> Verifying & Saving...';
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> Verifying & Securing Hash...';
             btn.disabled = true;
 
-            // Capture Metadata (IP & Location)
+            // Capture Location & IP
             let ip = "Unknown IP", locStr = "Location Denied";
-            try {
-                const res = await fetch('https://api.ipify.org?format=json');
-                ip = (await res.json()).ip;
-            } catch(e) {}
-
-            const getLoc = () => new Promise((resolve) => {
-                if (!navigator.geolocation) resolve(locStr);
+            let ua = navigator.userAgent;
+            try { ip = (await (await fetch('https://api.ipify.org?format=json')).json()).ip; } catch(e) {}
+            const getLoc = () => new Promise(res => {
+                if(!navigator.geolocation) res(locStr);
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve(`Lat:${pos.coords.latitude.toFixed(4)},Lng:${pos.coords.longitude.toFixed(4)}`),
-                    (err) => resolve(locStr),
-                    { timeout: 5000 }
+                    (p) => res(`Lat:${p.coords.latitude.toFixed(4)},Lng:${p.coords.longitude.toFixed(4)}`),
+                    (e) => res(locStr), {timeout: 5000}
                 );
             });
             locStr = await getLoc();
             const timeStr = new Date().toLocaleString('en-IN');
+
+            // Generate Cryptographic SHA-256 Hash of Transaction Metadata
+            const hashDataString = `${workId}|${ip}|${locStr}|${timeStr}|${ua}|CustomerSigned`;
+            const docHash = await generateSHA256Hash(hashDataString);
 
             cpCanvas.toBlob(async (blob) => {
                 const filePath = `sig_remote_${workId}_${Date.now()}.png`;
                 try {
                     const { error: uploadErr } = await supabase.storage.from('agreements').upload(filePath, blob);
                     if(uploadErr) throw uploadErr;
-
                     const { data } = supabase.storage.from('agreements').getPublicUrl(filePath);
                     
                     const { error: updateErr } = await supabase.from('works').update({
                         customer_sign: data.publicUrl,
-                        customer_ip: ip,
-                        customer_location: locStr,
-                        consent_time: timeStr
+                        customer_ip: ip, customer_location: locStr,
+                        consent_time: timeStr, document_hash: docHash, customer_user_agent: ua
                     }).eq('id', workId);
 
                     if(updateErr) throw updateErr;
-
-                    // Success UI
-                    document.getElementById('cp-content').innerHTML = `
-                        <div class="text-center py-10 flex flex-col items-center justify-center h-full">
-                            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                                <i class="ph ph-check-circle text-5xl text-green-500"></i>
-                            </div>
-                            <h2 class="text-2xl font-black text-brand-dark mb-2">Signature Accepted!</h2>
-                            <p class="text-gray-500 font-medium">Your digital agreement has been securely signed and recorded. The decorator will share the final PDF copy with you shortly.</p>
-                        </div>`;
-                } catch (err) {
-                    alert('Error saving signature: ' + err.message);
-                    btn.innerHTML = originalHTML;
-                    btn.disabled = false;
-                }
+                    document.getElementById('cp-content').innerHTML = `<div class="text-center py-10 flex flex-col items-center justify-center h-full"><div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6"><i class="ph ph-check-circle text-5xl text-green-500"></i></div><h2 class="text-2xl font-black text-brand-dark mb-2">Signature Secured!</h2><p class="text-gray-500 font-medium">Your signature and digital hash have been securely recorded onto the blockchain ledger.</p></div>`;
+                } catch (err) { alert('Error: ' + err.message); btn.innerHTML = orig; btn.disabled = false; }
             });
         }
 
-        // --- STAFF MANAGEMENT ---
+        // --- STAFF & EXPENSES ---
         async function loadStaffDropdown() {
             const { data } = await supabase.from('staff').select('*');
             staffListCache = data || [];
             const sel = document.getElementById('attStaff'); 
-            sel.innerHTML = '<option value="">Select Staff Member...</option>';
+            sel.innerHTML = '<option value="">Select Staff...</option>';
             staffListCache.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
-            
-            sel.addEventListener('change', (e) => {
-                const st = staffListCache.find(x => x.id == e.target.value);
-                if(st) document.getElementById('attWage').value = st.daily_wage || 0;
-            });
+            sel.addEventListener('change', (e) => { const st = staffListCache.find(x => x.id == e.target.value); if(st) document.getElementById('attWage').value = st.daily_wage || 0; });
         }
         
         async function loadStaff() {
             const { data, error } = await supabase.from('staff').select('*').order('name');
             if(error) return;
-            const tb = document.getElementById('staffTbody'); 
-            tb.innerHTML = '';
-            data?.forEach(s => {
-                tb.innerHTML += `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-4 border-b border-gray-100">
-                        <p class="font-bold text-brand-dark text-base"><i class="ph ph-user-circle text-gray-400 text-lg align-middle"></i> ${s.name}</p>
-                        <p class="text-xs text-gray-500 mt-1"><i class="ph ph-phone"></i> ${s.phone||'-'}</p>
-                    </td>
-                    <td class="p-4 border-b border-gray-100 text-right">
-                        <span class="font-bold bg-green-50 text-green-800 px-3 py-1.5 rounded-lg border border-green-100">₹${(s.daily_wage||0).toLocaleString('en-IN')} / day</span>
-                    </td>
-                </tr>`;
-            });
+            const tb = document.getElementById('staffTbody'); tb.innerHTML = '';
+            data?.forEach(s => { tb.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 border-b border-gray-100"><p class="font-bold text-brand-dark text-base"><i class="ph ph-user-circle"></i> ${s.name}</p><p class="text-xs text-gray-500 mt-1">${s.phone||'-'}</p></td><td class="p-4 border-b border-gray-100 text-right"><span class="font-bold bg-green-50 text-green-800 px-3 py-1.5 rounded-lg border border-green-100">₹${(s.daily_wage||0).toLocaleString('en-IN')} / day</span></td></tr>`; });
         }
-        
         async function addStaff() {
-            const name = document.getElementById('stName').value;
-            const phone = document.getElementById('stPhone').value;
-            const wage = document.getElementById('stWage').value;
-            if(!name) return showToast('Staff name is required.', 'error');
-            
+            const name = document.getElementById('stName').value; const phone = document.getElementById('stPhone').value; const wage = document.getElementById('stWage').value;
+            if(!name) return showToast('Name required.', 'error');
             const { error } = await supabase.from('staff').insert([{ name, phone, daily_wage: wage }]);
-            if(error) showToast(error.message, 'error');
-            else {
-                document.getElementById('stName').value = ''; 
-                document.getElementById('stPhone').value = ''; 
-                document.getElementById('stWage').value = ''; 
-                loadStaff(); 
-                loadStaffDropdown(); 
-                showToast('Staff member added successfully!');
-            }
+            if(error) showToast(error.message, 'error'); else { document.getElementById('stName').value=''; document.getElementById('stPhone').value=''; document.getElementById('stWage').value=''; loadStaff(); loadStaffDropdown(); showToast('Staff added!'); }
         }
 
-        // --- EXPENSES ---
         async function loadExpenses() {
             const { data, error } = await supabase.from('expenses').select('*').order('expense_date', { ascending: false });
             if(error) return;
-            
-            const tb = document.getElementById('expensesTbody'); 
-            tb.innerHTML = '';
-            data?.forEach(e => {
-                let catColor = 'bg-gray-100 text-gray-800';
-                if(e.category === 'Materials') catColor = 'bg-blue-100 text-blue-800';
-                if(e.category === 'Transport') catColor = 'bg-purple-100 text-purple-800';
-                if(e.category === 'Labour') catColor = 'bg-orange-100 text-orange-800';
-
-                tb.innerHTML += `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-4 border-b border-gray-100 font-medium text-gray-600">${e.expense_date}</td>
-                    <td class="p-4 border-b border-gray-100 font-bold text-gray-800">${e.description}</td>
-                    <td class="p-4 border-b border-gray-100"><span class="px-2.5 py-1 ${catColor} rounded-lg text-xs font-bold">${e.category}</span></td>
-                    <td class="p-4 border-b border-gray-100 text-right font-black text-brand-red">₹${Number(e.amount).toLocaleString('en-IN')}</td>
-                </tr>`;
-            });
+            const tb = document.getElementById('expensesTbody'); tb.innerHTML = '';
+            data?.forEach(e => { tb.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 border-b border-gray-100 font-medium">${e.expense_date}</td><td class="p-4 border-b border-gray-100 font-bold">${e.description}</td><td class="p-4 border-b border-gray-100 text-xs font-bold">${e.category}</td><td class="p-4 border-b border-gray-100 text-right font-black text-brand-red">₹${Number(e.amount).toLocaleString('en-IN')}</td></tr>`; });
         }
-        
         async function addExpense() {
-            const desc = document.getElementById('expDesc').value;
-            const cat = document.getElementById('expCategory').value;
-            const amt = document.getElementById('expAmount').value;
+            const desc = document.getElementById('expDesc').value; const cat = document.getElementById('expCategory').value; const amt = document.getElementById('expAmount').value;
             if(!amt || !desc) return showToast('Description and Amount are required.', 'error');
-            
             const { error } = await supabase.from('expenses').insert([{ description: desc, category: cat, amount: amt }]);
-            if(error) showToast(error.message, 'error');
-            else {
-                document.getElementById('expDesc').value = ''; 
-                document.getElementById('expAmount').value = '';
-                loadExpenses(); 
-                showToast('Expense logged successfully!');
+            if(error) showToast(error.message, 'error'); else { document.getElementById('expDesc').value=''; document.getElementById('expAmount').value=''; loadExpenses(); showToast('Expense logged!'); }
+        }
+
+        function shareToWhatsApp() {
+            if(!activeWorkData || !activeWorkData.customers) return;
+            const phone = activeWorkData.customers.phone;
+            const msg = `Hello ${activeWorkData.customers.name},\n\nHere is your signed Decoration Work Agreement (WK-${activeWorkData.id}) from *DE DECORATORS*.\n\nTotal Contract Amount: ₹${activeWorkData.total_amount}\n\nPlease find your secure digital PDF attached.\n\nThank you!`;
+            const encodedMsg = encodeURIComponent(msg);
+            let waUrl = `https://wa.me/91${phone.replace(/\D/g, '')}?text=${encodedMsg}`;
+            if(!phone || phone.length < 10) waUrl = `https://wa.me/?text=${encodedMsg}`;
+            window.open(waUrl, '_blank');
+        }
+
+        // --- PDF GENERATION WITH AUDIT TRAIL & QR ---
+        async function generatePDF(langCode) {
+            if(!activeWorkData) return;
+            const w = activeWorkData; const c = w.customers;
+            const t = document.getElementById(`template-${langCode}`);
+            
+            // Custom Logo Inject
+            const savedLogo = localStorage.getItem('dedecorators_logo');
+            const imgEl = t.querySelector(langCode === 'en' ? '#pdfLogoImgEn' : '#pdfLogoImgBn');
+            const textEl = t.querySelector(langCode === 'en' ? '#pdfLogoTextEn' : '#pdfLogoTextBn');
+            if (savedLogo) { imgEl.src = savedLogo; imgEl.classList.remove('hidden'); textEl.classList.add('hidden'); } 
+            else { imgEl.classList.add('hidden'); textEl.classList.remove('hidden'); }
+            
+            // Date Formatting
+            t.querySelector('.pd-id').innerText = `WK-${w.id}`;
+            t.querySelector('.pd-date').innerText = new Date().toLocaleDateString('en-IN');
+            t.querySelector('.pd-cname').innerText = c.name;
+            t.querySelector('.pd-cphone').innerText = c.phone || 'N/A';
+            t.querySelector('.pd-ename').innerText = 'Decoration Work';
+            
+            let dateStr = w.event_date || 'N/A';
+            if(w.event_end_date) dateStr += ` to ${w.event_end_date}`;
+            t.querySelector('.pd-edates').innerText = dateStr;
+            
+            t.querySelector('.pd-evenue').innerText = w.venue || 'N/A';
+            
+            const tbody = t.querySelector('.pd-items-tbody'); tbody.innerHTML = '';
+            if(w.invoice_items && w.invoice_items.length > 0) {
+                w.invoice_items.forEach(i => { tbody.innerHTML += `<tr><td class="border p-2 font-medium">${i.item_name}</td><td class="border p-2 text-center">${i.quantity}</td><td class="border p-2 text-right">${(i.rate || 0).toLocaleString('en-IN')}</td><td class="border p-2 text-right font-bold">${((i.quantity * i.rate) || 0).toLocaleString('en-IN')}</td></tr>`; });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="border p-4 text-center italic text-gray-500">Lump Sum Contract - No detailed items</td></tr>`;
             }
+            t.querySelector('.pd-grand').innerText = (w.total_amount || 0).toLocaleString('en-IN');
+
+            t.querySelector('.pd-sig-dec').innerHTML = w.decorator_sign ? `<img src="${w.decorator_sign}" class="signature-img">` : '';
+            t.querySelector('.pd-sig-cust').innerHTML = w.customer_sign ? `<img src="${w.customer_sign}" class="signature-img">` : '';
+            t.querySelectorAll('.pd-cname').forEach(el => el.innerText = c.name);
+
+            // Audit Trail Info & QR Code
+            const auditDivs = t.querySelectorAll('.pd-audit-trail');
+            if(w.document_hash) {
+                auditDivs.forEach(el => {
+                    el.classList.remove('hidden');
+                    el.querySelector('.pd-meta-time').innerText = w.consent_time;
+                    el.querySelector('.pd-meta-ip').innerText = w.customer_ip || 'N/A';
+                    el.querySelector('.pd-meta-loc').innerText = w.customer_location || 'N/A';
+                    el.querySelector('.pd-user-agent').innerText = w.customer_user_agent || 'Unknown';
+                    el.querySelector('.pd-hash').innerText = w.document_hash;
+                    
+                    // Generate QR
+                    const qrContainer = el.querySelector('.pd-qr-code');
+                    qrContainer.innerHTML = ''; // clear old
+                    new QRCode(qrContainer, {
+                        text: `Verify Hash: ${w.document_hash}`,
+                        width: 80, height: 80, colorDark : "#800000", colorLight : "#ffffff"
+                    });
+                });
+            } else {
+                auditDivs.forEach(el => el.classList.add('hidden'));
+            }
+
+            const renderContainer = document.getElementById('pdf-render-container');
+            renderContainer.style.left = '0'; renderContainer.style.top = '0'; renderContainer.style.zIndex = '-10';
+
+            showToast('Generating Encrypted PDF... Please wait.', 'info');
+            try {
+                const canvas = await html2canvas(t, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                const pWidth = pdf.internal.pageSize.getWidth();
+                const pHeight = (canvas.height * pWidth) / canvas.width;
+                
+                // For a 2 page PDF if height exceeds a4 height
+                let hLeft = pHeight; let pos = 0;
+                pdf.addImage(imgData, 'JPEG', 0, pos, pWidth, pHeight);
+                hLeft -= pdf.internal.pageSize.getHeight();
+                while (hLeft >= 0) { pos = hLeft - pHeight; pdf.addPage(); pdf.addImage(imgData, 'JPEG', 0, pos, pWidth, pHeight); hLeft -= pdf.internal.pageSize.getHeight(); }
+                
+                pdf.save(`DE_Decorators_Agreement_WK${w.id}_${c.name.replace(/\s+/g, '_')}.pdf`);
+                showToast('PDF Downloaded Successfully!');
+            } catch(e) { console.error(e); showToast('PDF Generation failed.', 'error'); }
+            
+            renderContainer.style.left = '-9999px';
         }
 
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const signWorkId = urlParams.get('sign_work');
-            
-            if (signWorkId) {
-                // Route to Customer Portal
-                initCustomerPortal(signWorkId);
-            } else {
-                // Route to Admin Panel
-                checkAuth();
-            }
+            if (signWorkId) { initCustomerPortal(signWorkId); } else { checkAuth(); }
         };
     </script>
 </body>
